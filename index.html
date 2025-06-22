@@ -485,8 +485,8 @@
                 <div class="input-group">
                     <label for="mqttPort">Puerto</label>
                     <select id="mqttPort">
-                        <option value="8000">8000 (WebSocket sin SSL)</option>
-                        <option value="8883" selected>8883 (WSS - HiveMQ)</option>
+                        <option value="8000" selected>8000 (WebSocket sin SSL)</option>
+                        <option value="8883">8883 (WSS - HiveMQ)</option>
                         <option value="8884">8884 (WSS alternativo)</option>
                     </select>
                 </div>
@@ -511,6 +511,7 @@
                 <button class="btn btn-primary" onclick="connectMQTT()">🔌 Conectar MQTT</button>
                 <button class="btn btn-danger" onclick="disconnectMQTT()" style="display: none;" id="disconnectBtn">🔌 Desconectar</button>
                 <button class="btn btn-secondary" onclick="toggleConfigPanel()">⚙️ Config</button>
+                <button class="btn btn-secondary" onclick="testPublicBroker()">🧪 Test Broker Público</button>
             </div>
         </div>
 
@@ -818,7 +819,7 @@
                 try {
                     const config = JSON.parse(saved);
                     document.getElementById('mqttHost').value = config.host || '2a23f9476713427784953f7e7bf869e2.s1.eu.hivemq.cloud';
-                    document.getElementById('mqttPort').value = config.port || '8883';
+                    document.getElementById('mqttPort').value = config.port || '8000';
                     document.getElementById('mqttTopic').value = config.topic || 'kiosol/mate3';
                     document.getElementById('mqttUsername').value = config.username || 'kiosol';
                     document.getElementById('mqttClientId').value = config.clientId || generateClientId();
@@ -832,7 +833,7 @@
             } else {
                 // Configuración por defecto para HiveMQ Cloud Kiosol
                 document.getElementById('mqttHost').value = '2a23f9476713427784953f7e7bf869e2.s1.eu.hivemq.cloud';
-                document.getElementById('mqttPort').value = '8883';
+                document.getElementById('mqttPort').value = '8000'; // Cambiar por defecto a 8000
                 document.getElementById('mqttTopic').value = 'kiosol/mate3';
                 document.getElementById('mqttUsername').value = 'kiosol';
                 document.getElementById('mqttPassword').value = 'Proy&Kiosol888';
@@ -1034,6 +1035,18 @@
             const panel = document.querySelector('.mqtt-config-panel');
             const isHidden = panel.style.display === 'none';
             panel.style.display = isHidden ? 'block' : 'none';
+        }
+
+        // Test con broker público
+        function testPublicBroker() {
+            // Configurar broker público temporalmente
+            document.getElementById('mqttHost').value = 'test.mosquitto.org';
+            document.getElementById('mqttPort').value = '8080';
+            document.getElementById('mqttUsername').value = '';
+            document.getElementById('mqttPassword').value = '';
+            document.getElementById('mqttTopic').value = 'test/mate3';
+            
+            showError('🧪 Configurado broker público de prueba. Haz clic en Conectar.');
         }
 
         // Actualizar estado de conexión (igual que el original)
