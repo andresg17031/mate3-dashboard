@@ -483,11 +483,11 @@
                     <input type="text" id="mqttHost" placeholder="broker.hivemq.com" value="2a23f9476713427784953f7e7bf869e2.s1.eu.hivemq.cloud">
                 </div>
                 <div class="input-group">
-                    <label for="mqttPort">Puerto</label>
+                    <label for="mqttPort">Puerto WSS (Solo Seguro)</label>
                     <select id="mqttPort">
-                        <option value="8000" selected>8000 (WebSocket sin SSL)</option>
-                        <option value="8883">8883 (WSS - HiveMQ)</option>
-                        <option value="8884">8884 (WSS alternativo)</option>
+                        <option value="8884" selected>8884 (WSS - Recomendado)</option>
+                        <option value="8883">8883 (WSS - HiveMQ Cloud)</option>
+                        <option value="443">443 (WSS - Puerto HTTPS)</option>
                     </select>
                 </div>
                 <div class="input-group">
@@ -819,7 +819,7 @@
                 try {
                     const config = JSON.parse(saved);
                     document.getElementById('mqttHost').value = config.host || '2a23f9476713427784953f7e7bf869e2.s1.eu.hivemq.cloud';
-                    document.getElementById('mqttPort').value = config.port || '8000';
+                    document.getElementById('mqttPort').value = config.port || '8884';
                     document.getElementById('mqttTopic').value = config.topic || 'kiosol/mate3';
                     document.getElementById('mqttUsername').value = config.username || 'kiosol';
                     document.getElementById('mqttClientId').value = config.clientId || generateClientId();
@@ -831,9 +831,9 @@
                     console.log('Error cargando configuración guardada');
                 }
             } else {
-                // Configuración por defecto para HiveMQ Cloud Kiosol
+                // Configuración por defecto para HiveMQ Cloud Kiosol (SOLO WSS)
                 document.getElementById('mqttHost').value = '2a23f9476713427784953f7e7bf869e2.s1.eu.hivemq.cloud';
-                document.getElementById('mqttPort').value = '8000'; // Cambiar por defecto a 8000
+                document.getElementById('mqttPort').value = '8884'; // Por defecto WSS
                 document.getElementById('mqttTopic').value = 'kiosol/mate3';
                 document.getElementById('mqttUsername').value = 'kiosol';
                 document.getElementById('mqttPassword').value = 'Proy&Kiosol888';
@@ -857,11 +857,20 @@
             updateConnectionStatus('connecting', 'Conectando a MQTT...');
 
             try {
-                // Construir URL para MQTT.js
-                const protocol = (port === 8883 || port === 8884) ? 'wss' : 'ws';
-                const url = `${protocol}://${host}:${port}/mqtt`;
+                // HTTPS requiere WSS - usar siempre conexión segura
+                const protocol = 'wss'; // Forzar WSS para HTTPS
+                
+                // Determinar puerto correcto para WSS
+                let finalPort = port;
+                if (port === 8000) {
+                    // Si seleccionaron 8000, cambiar automáticamente a puerto WSS
+                    finalPort = 8884;
+                    console.log('🔒 Cambiando automáticamente de puerto 8000 a 8884 para WSS');
+                }
+                
+                const url = `${protocol}://${host}:${finalPort}/mqtt`;
 
-                console.log('Conectando a:', url);
+                console.log('🔒 Conectando con HTTPS/WSS a:', url);
 
                 // Opciones de conexión
                 const options = {
@@ -869,7 +878,7 @@
                     username: username,
                     password: password,
                     clean: true,
-                    connectTimeout: 15000,
+                    connectTimeout: 20000, // Más tiempo para WSS
                     keepalive: 60,
                     reconnectPeriod: 0 // Desactivar reconexión automática
                 };
@@ -879,7 +888,7 @@
 
                 // Configurar eventos
                 mqttClient.on('connect', () => {
-                    console.log('✅ Conectado a MQTT exitosamente');
+                    console.log('✅ Conectado a MQTT via WSS exitosamente');
                     onMQTTConnect(topic);
                 });
 
@@ -1039,14 +1048,14 @@
 
         // Test con broker público
         function testPublicBroker() {
-            // Configurar broker público temporalmente
+            // Configurar broker público WSS para HTTPS
             document.getElementById('mqttHost').value = 'test.mosquitto.org';
-            document.getElementById('mqttPort').value = '8080';
+            document.getElementById('mqttPort').value = '8081'; // Puerto WSS público
             document.getElementById('mqttUsername').value = '';
             document.getElementById('mqttPassword').value = '';
             document.getElementById('mqttTopic').value = 'test/mate3';
             
-            showError('🧪 Configurado broker público de prueba. Haz clic en Conectar.');
+            showError('🧪 Configurado broker público WSS de prueba. Haz clic en Conectar.');
         }
 
         // Actualizar estado de conexión (igual que el original)
