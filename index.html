@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MATE3 Solar Monitor - Kiosol Universidad de los Andes</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+            color: #fff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            animation: fadeInDown 1s ease-out;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ffd89b, #19547b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: #a0a0a0;
+            font-size: 1.1em;
+        }
+
+        .mqtt-config-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-group label {
+            color: white;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .input-group input, .input-group select {
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 14px;
+        }
+
+        .input-group input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .mqtt-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .status-bar {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 15px 25px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: fadeIn 1s ease-out 0.2s both;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #00ff88;
+            box-shadow: 0 0 10px #00ff88;
+        }
+
+        .status-dot.disconnected {
+            background: #ff4444;
+            box-shadow: 0 0 10px #ff4444;
+        }
+
+        .status-dot.warning {
+            background: #ffd700;
+            box-shadow: 0 0 10px #ffd700;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 25px;
+            transition: all 0.3s ease;
+            animation: fadeInUp 1s ease-out;
+            animation-fill-mode: both;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .card h2 {
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-icon {
+            font-size: 1.5em;
+        }
+
+        .metric {
+            margin: 15px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .metric-label {
+            color: #a0a0a0;
+            font-size: 0.9em;
+        }
+
+        .metric-value {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .metric-value.primary {
+            font-size: 1.4em;
+            color: #00ff88;
+        }
+
+        .metric-value.warning {
+            color: #ffd700;
+        }
+
+        .metric-value.critical {
+            color: #ff4444;
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 30px;
+            animation: fadeInUp 1s ease-out 0.6s both;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 350px;
+            margin-bottom: 20px;
+        }
+
+        .chart-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+
+        .chart-btn {
+            padding: 8px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: transparent;
+            color: #fff;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.85em;
+        }
+
+        .chart-btn.active {
+            background: rgba(0, 255, 136, 0.2);
+            border-color: #00ff88;
+            color: #00ff88;
+        }
+
+        .chart-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .gauge-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 120px;
+            position: relative;
+            margin: 15px 0;
+        }
+
+        .gauge {
+            width: 120px;
+            height: 120px;
+            position: relative;
+        }
+
+        .gauge-circle {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        .gauge-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .control-panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            font-size: 0.9em;
+        }
+
+        .btn-primary {
+            background: #00ff88;
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            background: #00cc66;
+        }
+
+        .btn-secondary {
+            background: #667eea;
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            background: #5a67d8;
+        }
+
+        .btn-danger {
+            background: #ff4444;
+            color: #fff;
+        }
+
+        .btn-danger:hover {
+            background: #cc3333;
+        }
+
+        .time-range-selector {
+            display: flex;
+            gap: 5px;
+        }
+
+        .time-btn {
+            padding: 6px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: transparent;
+            color: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.85em;
+        }
+
+        .time-btn.active {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #00ff88;
+        }
+
+        .time-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .data-info {
+            font-size: 0.85em;
+            color: #a0a0a0;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .disconnected-overlay {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 67, 54, 0.9);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            display: none;
+            animation: fadeIn 0.5s;
+            z-index: 1000;
+        }
+
+        .alert {
+            background: rgba(255, 67, 54, 0.2);
+            border: 1px solid rgba(255, 67, 54, 0.5);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .info-panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 30px;
+            text-align: center;
+            color: #a0a0a0;
+        }
+
+        .debug-panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8em;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .control-panel {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .chart-selector {
+                justify-content: center;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .status-bar {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌞 MATE3 Solar Monitor</h1>
+            <p class="subtitle">Sistema Fotovoltaico Kiosol - Universidad de los Andes (HiveMQ)</p>
+        </header>
+
+        <!-- Panel de Configuración MQTT -->
+        <div class="mqtt-config-panel">
+            <h3 style="margin-bottom: 15px; color: #fff;">🔌 Configuración del Broker MQTT</h3>
+            <div class="config-grid">
+                <div class="input-group">
+                    <label for="mqttHost">Host del Broker</label>
+                    <input type="text" id="mqttHost" placeholder="broker.hivemq.com" value="2a23f9476713427784953f7e7bf869e2.s1.eu.hivemq.cloud">
+                </div>
+                <div class="input-group">
+                    <label for="mqttPort">Puerto</label>
+                    <select id="mqttPort">
+                        <option value="8000">8000 (WebSocket)</option>
+                        <option value="8884" selected>8884 (WSS)</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="mqttTopic">Tópico Base</label>
+                    <input type="text" id="mqttTopic" placeholder="kiosol/mate3" value="kiosol/mate3">
+                </div>
+                <div class="input-group">
+                    <label for="mqttUsername">Usuario</label>
+                    <input type="text" id="mqttUsername" placeholder="usuario" value="">
+                </div>
+                <div class="input-group">
+                    <label for="mqttPassword">Contraseña</label>
+                    <input type="password" id="mqttPassword" placeholder="contraseña" value="">
+                </div>
+                <div class="input-group">
+                    <label for="mqttClientId">ID Cliente</label>
+                    <input type="text" id="mqttClientId" placeholder="dashboard-client" value="">
+                </div>
+            </div>
+            <div class="mqtt-controls">
+                <button class="btn btn-primary" onclick="connectMQTT()">🔌 Conectar MQTT</button>
+                <button class="btn btn-danger" onclick="disconnectMQTT()" style="display: none;" id="disconnectBtn">🔌 Desconectar</button>
+                <button class="btn btn-secondary" onclick="toggleConfigPanel()">⚙️ Config</button>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <div class="control-group">
+                <span>Rango de tiempo:</span>
+                <div class="time-range-selector">
+                    <button class="time-btn" onclick="changeTimeRange(1)" data-hours="1">1h</button>
+                    <button class="time-btn" onclick="changeTimeRange(6)" data-hours="6">6h</button>
+                    <button class="time-btn" onclick="changeTimeRange(12)" data-hours="12">12h</button>
+                    <button class="time-btn active" onclick="changeTimeRange(24)" data-hours="24">24h</button>
+                </div>
+            </div>
+            <div class="control-group">
+                <button class="btn btn-secondary" onclick="downloadCompleteData()">📥 Descargar CSV</button>
+                <button class="btn btn-primary" onclick="clearHistoryData()">🗑️ Limpiar Historial</button>
+            </div>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-indicator">
+                <span class="status-dot disconnected" id="connectionStatus"></span>
+                <span id="connectionText">Desconectado - Configure MQTT</span>
+            </div>
+            <div id="lastUpdate">Última actualización: --:--:--</div>
+        </div>
+
+        <div class="alert" id="alertBox">
+            <strong>⚠️ Alerta:</strong> <span id="alertMessage"></span>
+        </div>
+
+        <div class="disconnected-overlay" id="disconnectedOverlay">
+            ⚠️ Sistema desconectado - Sin datos por más de 2 minutos
+        </div>
+
+        <!-- Panel de Debug -->
+        <div class="debug-panel">
+            <h3>🔍 Debug - Últimos Datos Recibidos:</h3>
+            <pre id="debugData">Esperando conexión MQTT...</pre>
+        </div>
+
+        <!-- Tarjetas de Datos en Tiempo Real -->
+        <div class="grid">
+            <!-- Tarjeta Inversor -->
+            <div class="card">
+                <h2>
+                    <span class="card-icon">🔌</span>
+                    Inversor
+                </h2>
+                <div class="metric">
+                    <span class="metric-label">Estado</span>
+                    <span class="metric-value" id="inverterMode">--</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Voltaje Salida AC</span>
+                    <span class="metric-value primary" id="acOutput">-- V</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Voltaje Batería</span>
+                    <span class="metric-value" id="invBatteryVoltage">-- V</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Modo AC</span>
+                    <span class="metric-value" id="acMode">--</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Estado</span>
+                    <span class="metric-value" id="inverterStatus">--</span>
+                </div>
+            </div>
+
+            <!-- Tarjeta Controlador de Carga -->
+            <div class="card">
+                <h2>
+                    <span class="card-icon">☀️</span>
+                    Controlador de Carga
+                </h2>
+                <div class="metric">
+                    <span class="metric-label">Estado</span>
+                    <span class="metric-value" id="ccMode">--</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Voltaje Paneles (PV)</span>
+                    <span class="metric-value primary" id="pvVoltage">-- V</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Corriente Entrada PV</span>
+                    <span class="metric-value" id="pvCurrent">-- A</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Potencia Solar</span>
+                    <span class="metric-value" id="pvPower" style="color: #ffd700;">-- W</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Corriente Salida</span>
+                    <span class="metric-value" id="ccOutputCurrent">-- A</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Energía Salida Hoy</span>
+                    <span class="metric-value" id="energyOutputToday">-- kWh</span>
+                </div>
+            </div>
+
+            <!-- Tarjeta Batería -->
+            <div class="card">
+                <h2>
+                    <span class="card-icon">🔋</span>
+                    Batería
+                </h2>
+                <div class="gauge-container">
+                    <div class="gauge">
+                        <svg class="gauge-circle" viewBox="0 0 36 36">
+                            <path d="M18 2.0845
+                                a 15.9155 15.9155 0 0 1 0 31.831
+                                a 15.9155 15.9155 0 0 1 0 -31.831"
+                                fill="none"
+                                stroke="rgba(255,255,255,0.1)"
+                                stroke-width="3"/>
+                            <path id="socGauge"
+                                d="M18 2.0845
+                                a 15.9155 15.9155 0 0 1 0 31.831
+                                a 15.9155 15.9155 0 0 1 0 -31.831"
+                                fill="none"
+                                stroke="#00ff88"
+                                stroke-width="3"
+                                stroke-dasharray="0 100"/>
+                        </svg>
+                        <div class="gauge-value" id="socValue">--%</div>
+                    </div>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Voltaje</span>
+                    <span class="metric-value" id="batteryVoltage">-- V</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Temperatura</span>
+                    <span class="metric-value" id="batteryTemp">-- °C</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">SoC Mínimo</span>
+                    <span class="metric-value" id="batteryMinSoc">-- %</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Días desde carga completa</span>
+                    <span class="metric-value" id="daysSinceFull">--</span>
+                </div>
+            </div>
+
+            <!-- Tarjeta Shunts -->
+            <div class="card">
+                <h2>
+                    <span class="card-icon">⚡</span>
+                    Shunts de Corriente
+                </h2>
+                <div class="metric">
+                    <span class="metric-label">Shunt A</span>
+                    <span class="metric-value" id="shuntACurrent">-- A</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Shunt B</span>
+                    <span class="metric-value" id="shuntBCurrent">-- A</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Energía Entrada Hoy</span>
+                    <span class="metric-value" id="energyInputToday">-- kWh</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Energía Salida Hoy</span>
+                    <span class="metric-value" id="energyOutputBatteryToday">-- kWh</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Ah Salida Hoy</span>
+                    <span class="metric-value" id="ahOutputToday">-- Ah</span>
+                </div>
+            </div>
+
+            <!-- Tarjeta Sistema -->
+            <div class="card">
+                <h2>
+                    <span class="card-icon">📊</span>
+                    Sistema
+                </h2>
+                <div class="metric">
+                    <span class="metric-label">Voltaje Sistema</span>
+                    <span class="metric-value primary" id="sysVoltage">-- V</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Tiempo Sistema</span>
+                    <span class="metric-value" id="sysTime">--</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Mensajes MQTT</span>
+                    <span class="metric-value" id="mqttMessages">--</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Estado Conexión</span>
+                    <span class="metric-value" id="systemStatus">--</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Fuente de Datos</span>
+                    <span class="metric-value" id="dataSource">MQTT HiveMQ</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección de Gráficas -->
+        <div class="chart-container">
+            <h2>📊 Gráficas del Sistema - <span id="chartTimeRange">Últimas 24 horas</span></h2>
+            <div class="chart-selector">
+                <button class="chart-btn active" onclick="showChart('power')">⚡ Potencia Solar</button>
+                <button class="chart-btn" onclick="showChart('soc')">🔋 Estado de Carga</button>
+                <button class="chart-btn" onclick="showChart('voltage')">📊 Voltaje Sistema</button>
+                <button class="chart-btn" onclick="showChart('voltage_pv')">☀️ Voltaje PV</button>
+                <button class="chart-btn" onclick="showChart('current')">⚡ Corrientes</button>
+                <button class="chart-btn" onclick="showChart('shunts')">🔌 Shunts</button>
+                <button class="chart-btn" onclick="showChart('energy')">💡 Energía</button>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="mainChart"></canvas>
+            </div>
+            <div class="data-info" id="chartInfo">
+                <span id="dataPointsInfo">Mostrando -- puntos de datos</span> | 
+                <span id="avgInfo">--</span> |
+                <span id="maxInfo">--</span>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <p>Sistema de monitoreo en tiempo real vía MQTT/HiveMQ (almacenamiento en navegador)</p>
+            <p>Desarrollado por: Andrés Santiago Gómez Blanco | Universidad de los Andes</p>
+            <p class="data-info">Datos almacenados localmente en el navegador con sincronización MQTT</p>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales MQTT y Sistema
+        let mqttClient = null;
+        let isConnected = false;
+        let mqttMessageCount = 0;
+        let lastConnectionStatus = null;
+        
+        // Variables del dashboard original
+        let mainChart = null;
+        let currentTimeRange = 24; // horas
+        let currentChartType = 'power';
+        let historyData = [];
+        let lastDataReceived = null;
+
+        // Configuración de colores para diferentes métricas (igual que el original)
+        const chartColors = {
+            power: '#ffd700',
+            soc: '#00ff88',
+            voltage_system: '#00aaff',
+            voltage_pv: '#ff8800',
+            voltage_battery: '#ff00aa',
+            current_pv: '#88ff00',
+            current_output: '#00ffaa',
+            shunt_a: '#ff4444',
+            shunt_b: '#44ff44',
+            energy_input: '#ffaa00',
+            energy_output: '#aa00ff'
+        };
+
+        // Generar ID único para el cliente MQTT
+        function generateClientId() {
+            return 'mate3-dashboard-' + Math.random().toString(36).substr(2, 9);
+        }
+
+        // Inicializar al cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Inicializando MATE3 Dashboard con HiveMQ...');
+            
+            // Generar ID único
+            document.getElementById('mqttClientId').value = generateClientId();
+            
+            // Inicializar gráfico
+            initChart();
+            
+            // Cargar configuración guardada
+            loadSavedConfig();
+            
+            // Cargar datos del historial del navegador
+            loadHistoryFromStorage();
+            
+            console.log('Dashboard inicializado - Configure MQTT para comenzar');
+        });
+
+        // Guardar configuración en localStorage
+        function saveConfig() {
+            const config = {
+                host: document.getElementById('mqttHost').value,
+                port: document.getElementById('mqttPort').value,
+                topic: document.getElementById('mqttTopic').value,
+                username: document.getElementById('mqttUsername').value,
+                // No guardamos la contraseña por seguridad
+                clientId: document.getElementById('mqttClientId').value
+            };
+            localStorage.setItem('mate3MqttConfig', JSON.stringify(config));
+        }
+
+        // Cargar configuración guardada
+        function loadSavedConfig() {
+            const saved = localStorage.getItem('mate3MqttConfig');
+            if (saved) {
+                try {
+                    const config = JSON.parse(saved);
+                    document.getElementById('mqttHost').value = config.host || '';
+                    document.getElementById('mqttPort').value = config.port || '8884';
+                    document.getElementById('mqttTopic').value = config.topic || 'kiosol/mate3';
+                    document.getElementById('mqttUsername').value = config.username || '';
+                    document.getElementById('mqttClientId').value = config.clientId || generateClientId();
+                } catch (e) {
+                    console.log('Error cargando configuración guardada');
+                }
+            }
+        }
+
+        // Conectar a MQTT
+        function connectMQTT() {
+            const host = document.getElementById('mqttHost').value;
+            const port = parseInt(document.getElementById('mqttPort').value);
+            const topic = document.getElementById('mqttTopic').value;
+            const username = document.getElementById('mqttUsername').value;
+            const password = document.getElementById('mqttPassword').value;
+            const clientId = document.getElementById('mqttClientId').value;
+
+            if (!host || !port || !topic || !clientId) {
+                showError('Por favor complete la configuración MQTT');
+                return;
+            }
+
+            updateConnectionStatus('connecting', 'Conectando a MQTT...');
+
+            try {
+                // Crear cliente MQTT
+                mqttClient = new Paho.MQTT.Client(host, port, clientId);
+
+                // Configurar callbacks
+                mqttClient.onConnectionLost = onMQTTConnectionLost;
+                mqttClient.onMessageArrived = onMQTTMessageArrived;
+
+                // Opciones de conexión
+                const connectOptions = {
+                    onSuccess: () => onMQTTConnect(topic),
+                    onFailure: onMQTTConnectFailure,
+                    useSSL: port === 8884,
+                    timeout: 10,
+                    keepAliveInterval: 60
+                };
+
+                // Agregar credenciales si están configuradas
+                if (username && password) {
+                    connectOptions.userName = username;
+                    connectOptions.password = password;
+                }
+
+                // Conectar
+                mqttClient.connect(connectOptions);
+
+            } catch (error) {
+                console.error('Error conectando MQTT:', error);
+                updateConnectionStatus('disconnected', 'Error de conexión MQTT');
+            }
+        }
+
+        // Callback cuando se conecta exitosamente
+        function onMQTTConnect(baseTopic) {
+            console.log('Conectado a MQTT exitosamente');
+            isConnected = true;
+            updateConnectionStatus('connected', 'Conectado a MQTT');
+            
+            // Suscribirse a todos los tópicos del MATE3
+            const topics = [
+                baseTopic + '/all',
+                baseTopic + '/system',
+                baseTopic + '/inverter', 
+                baseTopic + '/charge_controller',
+                baseTopic + '/battery'
+            ];
+
+            topics.forEach(topic => {
+                mqttClient.subscribe(topic);
+                console.log('Suscrito a:', topic);
+            });
+
+            // Actualizar UI
+            document.querySelector('[onclick="connectMQTT()"]').style.display = 'none';
+            document.getElementById('disconnectBtn').style.display = 'inline-block';
+            
+            // Guardar configuración
+            saveConfig();
+            
+            // Reiniciar contadores
+            mqttMessageCount = 0;
+            lastConnectionStatus = Date.now();
+        }
+
+        // Callback cuando falla la conexión
+        function onMQTTConnectFailure(error) {
+            console.error('Falló conexión MQTT:', error);
+            updateConnectionStatus('disconnected', 'Error: ' + (error.errorMessage || 'No se pudo conectar'));
+        }
+
+        // Callback cuando se pierde la conexión
+        function onMQTTConnectionLost(responseObject) {
+            if (responseObject.errorCode !== 0) {
+                console.log('Conexión MQTT perdida:', responseObject.errorMessage);
+                isConnected = false;
+                updateConnectionStatus('disconnected', 'Conexión perdida: ' + responseObject.errorMessage);
+                resetMQTTInterface();
+            }
+        }
+
+        // Callback cuando llega un mensaje MQTT
+        function onMQTTMessageArrived(message) {
+            console.log('Mensaje MQTT recibido en', message.destinationName, ':', message.payloadString);
+            
+            mqttMessageCount++;
+            document.getElementById('mqttMessages').textContent = mqttMessageCount;
+            
+            try {
+                const data = JSON.parse(message.payloadString);
+                
+                // Actualizar debug panel
+                document.getElementById('debugData').textContent = JSON.stringify(data, null, 2);
+                
+                // Determinar el tipo de mensaje y procesar
+                if (message.destinationName.endsWith('/all')) {
+                    // Mensaje completo del sistema
+                    updateUI(data);
+                } else {
+                    // Mensajes individuales por componente
+                    updatePartialUI(message.destinationName, data);
+                }
+                
+                lastConnectionStatus = Date.now();
+                document.getElementById('lastUpdate').textContent = 
+                    `Última actualización: ${new Date().toLocaleTimeString('es-CO')}`;
+                
+            } catch (error) {
+                console.error('Error procesando mensaje MQTT:', error);
+                showError('Error procesando datos: ' + error.message);
+            }
+        }
+
+        // Desconectar MQTT
+        function disconnectMQTT() {
+            if (mqttClient && isConnected) {
+                mqttClient.disconnect();
+            }
+            resetMQTTInterface();
+            updateConnectionStatus('disconnected', 'Desconectado manualmente');
+        }
+
+        // Resetear interfaz MQTT
+        function resetMQTTInterface() {
+            isConnected = false;
+            document.querySelector('[onclick="connectMQTT()"]').style.display = 'inline-block';
+            document.getElementById('disconnectBtn').style.display = 'none';
+        }
+
+        // Alternar panel de configuración
+        function toggleConfigPanel() {
+            const panel = document.querySelector('.mqtt-config-panel');
+            const isHidden = panel.style.display === 'none';
+            panel.style.display = isHidden ? 'block' : 'none';
+        }
+
+        // Actualizar estado de conexión (igual que el original)
+        function updateConnectionStatus(status, message) {
+            const statusDot = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('connectionText');
+            const overlay = document.getElementById('disconnectedOverlay');
+            
+            statusDot.className = 'status-dot ' + status;
+            statusText.textContent = message;
+            
+            if (status === 'connected') {
+                overlay.style.display = 'none';
+            } else if (status === 'disconnected') {
+                overlay.style.display = 'block';
+            }
+        }
+
+        // Actualizar UI con datos completos (adaptado del original)
+        function updateUI(data) {
+            console.log('Actualizando UI con datos completos:', data);
+
+            // Actualizar inversor
+            if (data.inverter) {
+                document.getElementById('inverterMode').textContent = data.inverter.mode || '--';
+                document.getElementById('acOutput').textContent = data.inverter.ac_output ? `${data.inverter.ac_output} V` : '-- V';
+                document.getElementById('invBatteryVoltage').textContent = data.inverter.battery_voltage ? `${data.inverter.battery_voltage} V` : '-- V';
+                document.getElementById('acMode').textContent = data.inverter.ac_mode || '--';
+                
+                // Estado del inversor
+                const warnings = data.inverter.warnings || ['none'];
+                const errors = data.inverter.errors || ['none'];
+                let status = 'Normal';
+                let statusClass = '';
+                
+                if (errors.length > 0 && errors[0] !== 'none') {
+                    status = 'Error: ' + errors.join(', ');
+                    statusClass = 'critical';
+                } else if (warnings.length > 0 && warnings[0] !== 'none') {
+                    status = 'Advertencia: ' + warnings.join(', ');
+                    statusClass = 'warning';
+                }
+                
+                const statusEl = document.getElementById('inverterStatus');
+                statusEl.textContent = status;
+                statusEl.className = 'metric-value ' + statusClass;
+            }
+
+            // Actualizar controlador de carga
+            if (data.charge_controller) {
+                document.getElementById('ccMode').textContent = data.charge_controller.mode ? data.charge_controller.mode.trim() : '--';
+                
+                const pvVoltage = parseFloat(data.charge_controller.input_voltage) || 0;
+                const pvCurrent = parseFloat(data.charge_controller.input_current) || 0;
+                const outputCurrent = parseFloat(data.charge_controller.output_current) || 0;
+                const outputKwh = parseFloat(data.charge_controller.output_kwh) || 0;
+                
+                document.getElementById('pvVoltage').textContent = `${pvVoltage.toFixed(1)} V`;
+                document.getElementById('pvCurrent').textContent = `${pvCurrent.toFixed(1)} A`;
+                document.getElementById('ccOutputCurrent').textContent = `${outputCurrent.toFixed(1)} A`;
+                document.getElementById('energyOutputToday').textContent = `${outputKwh.toFixed(2)} kWh`;
+                
+                // Calcular potencia solar
+                const power = pvVoltage * pvCurrent;
+                document.getElementById('pvPower').textContent = `${power.toFixed(1)} W`;
+            }
+
+            // Actualizar batería
+            if (data.battery) {
+                const soc = data.battery.soc || 0;
+                const minSoc = data.battery.min_soc || 0;
+                const batteryVoltage = parseFloat(data.battery.voltage) || 0;
+                const batteryTemp = data.battery.temperature ? data.battery.temperature.toString().replace(' C', '') : '--';
+                const daysSinceFull = data.battery.days_since_full || 0;
+                
+                document.getElementById('socValue').textContent = `${soc}%`;
+                document.getElementById('socGauge').style.strokeDasharray = `${soc} 100`;
+                document.getElementById('batteryVoltage').textContent = `${batteryVoltage.toFixed(1)} V`;
+                document.getElementById('batteryTemp').textContent = `${batteryTemp} °C`;
+                document.getElementById('batteryMinSoc').textContent = `${minSoc}%`;
+                document.getElementById('daysSinceFull').textContent = `${daysSinceFull.toFixed(1)}`;
+                
+                // Color del gauge según SoC
+                let gaugeColor = '#00ff88';
+                if (soc < 20) {
+                    gaugeColor = '#ff4444';
+                } else if (soc < 50) {
+                    gaugeColor = '#ffd700';
+                }
+                document.getElementById('socGauge').style.stroke = gaugeColor;
+
+                // Actualizar shunts
+                const shuntA = parseFloat(data.battery.shunt_a_current) || 0;
+                const shuntB = parseFloat(data.battery.shunt_b_current) || 0;
+                const inputKwhToday = parseFloat(data.battery.input_kwh_today) || 0;
+                const outputKwhToday = parseFloat(data.battery.output_kwh_today) || 0;
+                
+                document.getElementById('shuntACurrent').textContent = `${shuntA.toFixed(1)} A`;
+                document.getElementById('shuntBCurrent').textContent = `${shuntB.toFixed(1)} A`;
+                document.getElementById('energyInputToday').textContent = `${inputKwhToday.toFixed(2)} kWh`;
+                document.getElementById('energyOutputBatteryToday').textContent = `${outputKwhToday.toFixed(2)} kWh`;
+                
+                const ahOutput = Math.abs(shuntA) * 24;
+                document.getElementById('ahOutputToday').textContent = `${ahOutput.toFixed(1)} Ah`;
+            }
+
+            // Actualizar sistema
+            if (data.system) {
+                const sysVoltage = parseFloat(data.system.battery_voltage) || 0;
+                const sysTime = formatSystemTime(data.system.time);
+                
+                document.getElementById('sysVoltage').textContent = `${sysVoltage.toFixed(1)} V`;
+                document.getElementById('sysTime').textContent = sysTime;
+                document.getElementById('systemStatus').textContent = 'Conectado MQTT';
+            }
+
+            // Agregar a historial para gráficas
+            addToHistory(data);
+            
+            // Actualizar gráfica actual
+            if (mainChart && currentChartType) {
+                updateChart(currentChartType);
+            }
+        }
+
+        // Actualizar UI con datos parciales
+        function updatePartialUI(topic, data) {
+            console.log('Actualizando UI parcial:', topic, data);
+            
+            // Construir objeto completo a partir de datos parciales
+            let fullData = lastDataReceived || {};
+            
+            if (topic.endsWith('/system')) {
+                fullData.system = data;
+            } else if (topic.endsWith('/inverter')) {
+                fullData.inverter = data;
+            } else if (topic.endsWith('/charge_controller')) {
+                fullData.charge_controller = data;
+            } else if (topic.endsWith('/battery')) {
+                fullData.battery = data;
+            }
+            
+            lastDataReceived = fullData;
+            updateUI(fullData);
+        }
+
+        // Agregar datos al historial
+        function addToHistory(data) {
+            const now = new Date().toISOString();
+            const pvVoltage = parseFloat(data.charge_controller?.input_voltage) || 0;
+            const pvCurrent = parseFloat(data.charge_controller?.input_current) || 0;
+            const power = pvVoltage * pvCurrent;
+            
+            // Solo agregar si hay datos válidos
+            const hasValidData = data.system?.battery_voltage && 
+                                data.battery?.soc && 
+                                (pvVoltage > 0 || pvCurrent > 0);
+            
+            if (hasValidData) {
+                const historyEntry = {
+                    timestamp: now,
+                    power: power,
+                    soc: data.battery?.soc || 0,
+                    voltage_system: parseFloat(data.system?.battery_voltage) || 0,
+                    voltage_pv: pvVoltage,
+                    voltage_battery: parseFloat(data.battery?.voltage) || 0,
+                    current_pv: pvCurrent,
+                    current_output: parseFloat(data.charge_controller?.output_current) || 0,
+                    shunt_a: parseFloat(data.battery?.shunt_a_current) || 0,
+                    shunt_b: parseFloat(data.battery?.shunt_b_current) || 0,
+                    energy_input: parseFloat(data.battery?.input_kwh_today) || 0,
+                    energy_output: parseFloat(data.battery?.output_kwh_today) || 0
+                };
+
+                historyData.push(historyEntry);
+
+                // Mantener solo los últimos 1000 puntos
+                if (historyData.length > 1000) {
+                    historyData = historyData.slice(-1000);
+                }
+                
+                // Guardar en localStorage
+                saveHistoryToStorage();
+                
+                console.log('Datos agregados al historial:', power + 'W');
+            }
+        }
+
+        // Guardar historial en localStorage
+        function saveHistoryToStorage() {
+            try {
+                localStorage.setItem('mate3HistoryData', JSON.stringify(historyData));
+            } catch (e) {
+                console.warn('No se pudo guardar el historial en localStorage');
+            }
+        }
+
+        // Cargar historial desde localStorage
+        function loadHistoryFromStorage() {
+            try {
+                const saved = localStorage.getItem('mate3HistoryData');
+                if (saved) {
+                    historyData = JSON.parse(saved);
+                    console.log(`Historial cargado: ${historyData.length} registros`);
+                    
+                    // Actualizar gráfica si existe
+                    if (mainChart && currentChartType) {
+                        updateChart(currentChartType);
+                    }
+                }
+            } catch (e) {
+                console.warn('Error cargando historial desde localStorage');
+                historyData = [];
+            }
+        }
+
+        // Limpiar historial
+        function clearHistoryData() {
+            historyData = [];
+            localStorage.removeItem('mate3HistoryData');
+            if (mainChart) {
+                mainChart.data.labels = [];
+                mainChart.data.datasets = [];
+                mainChart.update();
+            }
+            console.log('Historial limpiado');
+        }
+
+        // ===== FUNCIONES DEL DASHBOARD ORIGINAL =====
+
+        // Inicializar gráfico principal (igual que el original)
+        function initChart() {
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            mainChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: []
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#fff' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { 
+                                color: '#aaa',
+                                maxTicksLimit: 12
+                            },
+                            grid: { color: 'rgba(255,255,255,0.1)' }
+                        },
+                        y: {
+                            ticks: { 
+                                color: '#aaa'
+                            },
+                            grid: { color: 'rgba(255,255,255,0.1)' }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            });
+        }
+
+        // Formatear tiempo del sistema MATE3 (igual que el original)
+        function formatSystemTime(timestamp) {
+            if (!timestamp) return '--:--:--';
+            
+            try {
+                if (typeof timestamp === 'number') {
+                    const date = new Date(timestamp * 1000);
+                    return date.toLocaleTimeString('es-CO');
+                }
+                return timestamp.toString();
+            } catch (e) {
+                return '--:--:--';
+            }
+        }
+
+        // Formatear tiempo para mostrar (igual que el original)
+        function formatTime(date, includeDate = false) {
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            
+            if (includeDate || currentTimeRange > 24) {
+                const day = date.getDate().toString().padStart(2, '0');
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                return `${day}/${month} ${hours}:${minutes}`;
+            }
+            
+            return `${hours}:${minutes}`;
+        }
+
+        // Cambiar rango de tiempo (igual que el original)
+        function changeTimeRange(hours) {
+            currentTimeRange = hours;
+            
+            document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`[data-hours="${hours}"]`).classList.add('active');
+            
+            document.getElementById('chartTimeRange').textContent = 
+                hours === 1 ? 'Última hora' : 
+                hours === 6 ? 'Últimas 6 horas' :
+                hours === 12 ? 'Últimas 12 horas' :
+                'Últimas 24 horas';
+            
+            if (mainChart && currentChartType) {
+                updateChart(currentChartType);
+            }
+        }
+
+        // Mostrar diferentes tipos de gráficas (igual que el original)
+        function showChart(type) {
+            currentChartType = type;
+            
+            document.querySelectorAll('.chart-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            updateChart(type);
+        }
+
+        // Actualizar gráfica (igual que el original)
+        function updateChart(type) {
+            if (!mainChart || !historyData.length) return;
+
+            const now = new Date();
+            const timeLimit = new Date(now.getTime() - (currentTimeRange * 60 * 60 * 1000));
+            
+            const filteredData = historyData.filter(item => 
+                new Date(item.timestamp) >= timeLimit
+            );
+
+            if (!filteredData.length) return;
+
+            const labels = filteredData.map(item => 
+                formatTime(new Date(item.timestamp), currentTimeRange > 24)
+            );
+
+            let datasets = [];
+            let yAxisLabel = '';
+
+            switch (type) {
+                case 'power':
+                    datasets = [{
+                        label: 'Potencia Solar (W)',
+                        data: filteredData.map(item => item.power),
+                        borderColor: chartColors.power,
+                        backgroundColor: chartColors.power + '20',
+                        fill: true,
+                        tension: 0.4
+                    }];
+                    yAxisLabel = 'Potencia (W)';
+                    break;
+
+                case 'soc':
+                    datasets = [{
+                        label: 'Estado de Carga (%)',
+                        data: filteredData.map(item => item.soc),
+                        borderColor: chartColors.soc,
+                        backgroundColor: chartColors.soc + '20',
+                        fill: true,
+                        tension: 0.4
+                    }];
+                    yAxisLabel = 'Estado de Carga (%)';
+                    break;
+
+                case 'voltage':
+                    datasets = [
+                        {
+                            label: 'Voltaje Sistema (V)',
+                            data: filteredData.map(item => item.voltage_system),
+                            borderColor: chartColors.voltage_system,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Voltaje Batería (V)',
+                            data: filteredData.map(item => item.voltage_battery),
+                            borderColor: chartColors.voltage_battery,
+                            tension: 0.4
+                        }
+                    ];
+                    yAxisLabel = 'Voltaje Sistema/Batería (V)';
+                    break;
+
+                case 'voltage_pv':
+                    datasets = [{
+                        label: 'Voltaje Paneles PV (V)',
+                        data: filteredData.map(item => item.voltage_pv),
+                        borderColor: chartColors.voltage_pv,
+                        backgroundColor: chartColors.voltage_pv + '20',
+                        fill: true,
+                        tension: 0.4
+                    }];
+                    yAxisLabel = 'Voltaje PV (V)';
+                    break;
+
+                case 'current':
+                    datasets = [
+                        {
+                            label: 'Corriente PV (A)',
+                            data: filteredData.map(item => item.current_pv),
+                            borderColor: chartColors.current_pv,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Corriente Salida (A)',
+                            data: filteredData.map(item => item.current_output),
+                            borderColor: chartColors.current_output,
+                            tension: 0.4
+                        }
+                    ];
+                    yAxisLabel = 'Corriente (A)';
+                    break;
+
+                case 'shunts':
+                    datasets = [
+                        {
+                            label: 'Shunt A (A)',
+                            data: filteredData.map(item => item.shunt_a),
+                            borderColor: chartColors.shunt_a,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Shunt B (A)',
+                            data: filteredData.map(item => item.shunt_b),
+                            borderColor: chartColors.shunt_b,
+                            tension: 0.4
+                        }
+                    ];
+                    yAxisLabel = 'Corriente (A)';
+                    break;
+
+                case 'energy':
+                    datasets = [
+                        {
+                            label: 'Energía Entrada Hoy (kWh)',
+                            data: filteredData.map(item => item.energy_input),
+                            borderColor: chartColors.energy_input,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Energía Salida Hoy (kWh)',
+                            data: filteredData.map(item => item.energy_output),
+                            borderColor: chartColors.energy_output,
+                            tension: 0.4
+                        }
+                    ];
+                    yAxisLabel = 'Energía (kWh)';
+                    break;
+            }
+
+            mainChart.data.labels = labels;
+            mainChart.data.datasets = datasets;
+            mainChart.options.scales.y.title = {
+                display: true,
+                text: yAxisLabel,
+                color: '#fff'
+            };
+            mainChart.update('none');
+
+            updateChartInfo(filteredData, type);
+        }
+
+        // Actualizar información de la gráfica (igual que el original)
+        function updateChartInfo(data, type) {
+            if (!data.length) return;
+
+            let values = [];
+            let unit = '';
+
+            switch (type) {
+                case 'power':
+                    values = data.map(item => item.power);
+                    unit = 'W';
+                    break;
+                case 'soc':
+                    values = data.map(item => item.soc);
+                    unit = '%';
+                    break;
+                case 'voltage':
+                    values = data.map(item => item.voltage_system);
+                    unit = 'V';
+                    break;
+                case 'current':
+                    values = data.map(item => item.current_pv);
+                    unit = 'A';
+                    break;
+                case 'shunts':
+                    values = data.map(item => Math.abs(item.shunt_a));
+                    unit = 'A';
+                    break;
+                case 'energy':
+                    values = data.map(item => item.energy_input);
+                    unit = 'kWh';
+                    break;
+            }
+
+            const avg = values.reduce((a, b) => a + b, 0) / values.length;
+            const max = Math.max(...values);
+
+            document.getElementById('dataPointsInfo').textContent = `Mostrando ${data.length} puntos de datos`;
+            document.getElementById('avgInfo').textContent = `Promedio: ${avg.toFixed(2)} ${unit}`;
+            document.getElementById('maxInfo').textContent = `Máximo: ${max.toFixed(2)} ${unit}`;
+        }
+
+        // Descargar datos completos como CSV (adaptado del original)
+        function downloadCompleteData() {
+            if (!historyData || historyData.length === 0) {
+                showError('No hay datos para descargar');
+                return;
+            }
+
+            let csv = 'Timestamp,Hora Colombia,';
+            csv += 'Voltaje Sistema (V),Potencia Solar (W),Estado Carga (%),';
+            csv += 'Voltaje PV (V),Corriente PV (A),Corriente Salida (A),';
+            csv += 'Voltaje Batería (V),Shunt A (A),Shunt B (A),';
+            csv += 'Energía Entrada (kWh),Energía Salida (kWh)\n';
+            
+            historyData.forEach(item => {
+                const timestamp = item.timestamp;
+                const date = new Date(timestamp);
+                
+                csv += `${timestamp},`;
+                csv += `${date.toLocaleString('es-CO')},`;
+                csv += `${item.voltage_system || ''},`;
+                csv += `${item.power?.toFixed(2) || 0},`;
+                csv += `${item.soc || ''},`;
+                csv += `${item.voltage_pv || ''},`;
+                csv += `${item.current_pv || ''},`;
+                csv += `${item.current_output || ''},`;
+                csv += `${item.voltage_battery || ''},`;
+                csv += `${item.shunt_a || ''},`;
+                csv += `${item.shunt_b || ''},`;
+                csv += `${item.energy_input || ''},`;
+                csv += `${item.energy_output || ''}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `mate3_hivemq_data_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }
+
+        // Mostrar errores (igual que el original)
+        function showError(message) {
+            document.getElementById('alertBox').style.display = 'block';
+            document.getElementById('alertMessage').textContent = message;
+            
+            setTimeout(() => {
+                document.getElementById('alertBox').style.display = 'none';
+            }, 5000);
+        }
+
+        // Limpiar al salir
+        window.addEventListener('beforeunload', function() {
+            if (mqttClient && isConnected) {
+                mqttClient.disconnect();
+            }
+        });
+    </script>
+</body>
+</html>
