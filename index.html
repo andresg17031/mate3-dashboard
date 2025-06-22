@@ -508,7 +508,8 @@
                 </div>
             </div>
             <div class="mqtt-controls">
-                <button class="btn btn-primary" onclick="connectMQTT()">🔌 Conectar MQTT</button>
+                <button class="btn btn-primary" onclick="connectHiveMQDirect()">🔌 Conectar HiveMQ (Directo)</button>
+                <button class="btn btn-secondary" onclick="connectMQTT()">🔧 Conectar Manual</button>
                 <button class="btn btn-danger" onclick="disconnectMQTT()" style="display: none;" id="disconnectBtn">🔌 Desconectar</button>
                 <button class="btn btn-secondary" onclick="toggleConfigPanel()">⚙️ Config</button>
                 <button class="btn btn-secondary" onclick="testPublicBroker()">🧪 Test Broker Público</button>
@@ -782,21 +783,33 @@
 
         // Inicializar al cargar la página
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('Inicializando MATE3 Dashboard con HiveMQ...');
+            console.log('🚀 Inicializando MATE3 Dashboard con HiveMQ...');
             
-            // Generar ID único
+            // Forzar configuración HiveMQ Cloud
+            document.getElementById('mqttHost').value = '2a23f9476713427784953f7e7bf869e2.s1.eu.hivemq.cloud';
+            document.getElementById('mqttPort').value = '8884';
+            document.getElementById('mqttTopic').value = 'kiosol/mate3';
+            document.getElementById('mqttUsername').value = 'kiosol';
+            document.getElementById('mqttPassword').value = 'Proy&Kiosol888';
             document.getElementById('mqttClientId').value = generateClientId();
+            
+            console.log('⚙️ Configuración inicial forzada:', {
+                host: document.getElementById('mqttHost').value,
+                port: document.getElementById('mqttPort').value,
+                topic: document.getElementById('mqttTopic').value,
+                username: document.getElementById('mqttUsername').value
+            });
             
             // Inicializar gráfico
             initChart();
             
-            // Cargar configuración guardada
+            // Cargar configuración guardada (si existe)
             loadSavedConfig();
             
             // Cargar datos del historial del navegador
             loadHistoryFromStorage();
             
-            console.log('Dashboard inicializado - Configure MQTT para comenzar');
+            console.log('✅ Dashboard inicializado - Listo para conectar a HiveMQ Cloud');
         });
 
         // Guardar configuración en localStorage
@@ -840,7 +853,7 @@
             }
         }
 
-        // Conectar a MQTT (usando MQTT.js)
+        // Conectar a MQTT (usando MQTT.js) - Configuración específica HiveMQ
         function connectMQTT() {
             const host = document.getElementById('mqttHost').value;
             const port = parseInt(document.getElementById('mqttPort').value);
@@ -857,43 +870,55 @@
             updateConnectionStatus('connecting', 'Conectando a MQTT...');
 
             try {
-                // HTTPS requiere WSS - usar siempre conexión segura
-                const protocol = 'wss'; // Forzar WSS para HTTPS
+                // CONFIGURACIÓN ESPECÍFICA PARA HIVEMQ CLOUD
+                const protocol = 'wss'; // Siempre WSS para HTTPS
                 
-                // Determinar puerto correcto para WSS
-                let finalPort = port;
-                if (port === 8000) {
-                    // Si seleccionaron 8000, cambiar automáticamente a puerto WSS
-                    finalPort = 8884;
-                    console.log('🔒 Cambiando automáticamente de puerto 8000 a 8884 para WSS');
-                }
-                
-                const url = `${protocol}://${host}:${finalPort}/mqtt`;
+                // URL correcta según documentación HiveMQ
+                const url = `${protocol}://${host}:${port}/mqtt`;
 
-                console.log('🔒 Conectando con HTTPS/WSS a:', url);
+                console.log('🔒 Conectando a HiveMQ Cloud WSS:', url);
+                console.log('📋 Configuración:', {
+                    host: host,
+                    port: port,
+                    clientId: clientId,
+                    username: username ? 'configurado' : 'no configurado',
+                    topic: topic
+                });
 
-                // Opciones de conexión
+                // Opciones específicas para HiveMQ Cloud
                 const options = {
                     clientId: clientId,
                     username: username,
                     password: password,
                     clean: true,
-                    connectTimeout: 20000, // Más tiempo para WSS
+                    connectTimeout: 30000, // 30 segundos para HiveMQ Cloud
                     keepalive: 60,
-                    reconnectPeriod: 0 // Desactivar reconexión automática
+                    reconnectPeriod: 0, // Sin reconexión automática
+                    protocolVersion: 4, // MQTT 3.1.1
+                    reschedulePings: true
                 };
+
+                // Agregar opciones TLS para HiveMQ Cloud
+                if (host.includes('hivemq.cloud')) {
+                    options.rejectUnauthorized = false; // Para HiveMQ Cloud
+                }
+
+                console.log('⚙️ Opciones de conexión:', options);
 
                 // Crear cliente MQTT
                 mqttClient = mqtt.connect(url, options);
 
-                // Configurar eventos
-                mqttClient.on('connect', () => {
-                    console.log('✅ Conectado a MQTT via WSS exitosamente');
+                // Configurar eventos con logs detallados
+                mqttClient.on('connect', (connack) => {
+                    console.log('✅ CONECTADO EXITOSAMENTE a HiveMQ Cloud!');
+                    console.log('📊 Detalles de conexión:', connack);
                     onMQTTConnect(topic);
                 });
 
                 mqttClient.on('error', (error) => {
-                    console.error('❌ Error MQTT:', error);
+                    console.error('❌ ERROR MQTT:', error);
+                    console.error('🔍 Tipo de error:', error.message);
+                    console.error('🔍 Stack:', error.stack);
                     onMQTTConnectFailure(error);
                 });
 
@@ -902,8 +927,19 @@
                     onMQTTConnectionLost({ errorMessage: 'Conexión cerrada' });
                 });
 
-                mqttClient.on('message', (topic, message) => {
+                mqttClient.on('offline', () => {
+                    console.log('📡 Cliente MQTT offline');
+                    updateConnectionStatus('disconnected', 'Cliente offline');
+                });
+
+                mqttClient.on('reconnect', () => {
+                    console.log('🔄 Intentando reconectar...');
+                    updateConnectionStatus('connecting', 'Reconectando...');
+                });
+
+                mqttClient.on('message', (topic, message, packet) => {
                     console.log('📨 Mensaje recibido:', topic, message.toString());
+                    console.log('📦 Detalles del paquete:', packet);
                     onMQTTMessageArrived({
                         destinationName: topic,
                         payloadString: message.toString()
@@ -911,8 +947,9 @@
                 });
 
             } catch (error) {
-                console.error('Error conectando MQTT:', error);
+                console.error('💥 EXCEPCIÓN al conectar MQTT:', error);
                 updateConnectionStatus('disconnected', 'Error de conexión MQTT: ' + error.message);
+                showError('Error: ' + error.message);
             }
         }
 
@@ -1032,18 +1069,122 @@
             updateConnectionStatus('disconnected', 'Desconectado manualmente');
         }
 
-        // Resetear interfaz MQTT
-        function resetMQTTInterface() {
-            isConnected = false;
-            document.querySelector('[onclick="connectMQTT()"]').style.display = 'inline-block';
-            document.getElementById('disconnectBtn').style.display = 'none';
-        }
-
         // Alternar panel de configuración
         function toggleConfigPanel() {
             const panel = document.querySelector('.mqtt-config-panel');
             const isHidden = panel.style.display === 'none';
             panel.style.display = isHidden ? 'block' : 'none';
+        }
+
+        // Resetear interfaz MQTT
+        function resetMQTTInterface() {
+            isConnected = false;
+            document.querySelector('[onclick="connectHiveMQDirect()"]').style.display = 'inline-block';
+            document.querySelector('[onclick="connectMQTT()"]').style.display = 'inline-block';
+            document.getElementById('disconnectBtn').style.display = 'none';
+        }
+
+        // Conexión directa a HiveMQ Cloud con configuración hardcodeada
+        function connectHiveMQDirect() {
+            console.log('🎯 CONEXIÓN DIRECTA A HIVEMQ CLOUD');
+            
+            updateConnectionStatus('connecting', 'Conectando directamente a HiveMQ Cloud...');
+
+            try {
+                // CONFIGURACIÓN HARDCODEADA HIVEMQ CLOUD
+                const url = 'wss://2a23f9476713427784953f7e7bf869e2.s1.eu.hivemq.cloud:8884/mqtt';
+                const clientId = 'mate3-dashboard-' + Math.random().toString(36).substr(2, 9);
+                
+                console.log('🔗 URL exacta:', url);
+                console.log('🆔 Cliente ID:', clientId);
+
+                const options = {
+                    clientId: clientId,
+                    username: 'kiosol',
+                    password: 'Proy&Kiosol888',
+                    clean: true,
+                    connectTimeout: 30000,
+                    keepalive: 60,
+                    reconnectPeriod: 0,
+                    protocolVersion: 4
+                };
+
+                console.log('⚙️ Opciones:', options);
+
+                // Crear cliente MQTT
+                mqttClient = mqtt.connect(url, options);
+
+                // Configurar eventos
+                mqttClient.on('connect', (connack) => {
+                    console.log('🎉 ¡CONECTADO A HIVEMQ CLOUD!');
+                    console.log('📊 Información de conexión:', connack);
+                    
+                    isConnected = true;
+                    updateConnectionStatus('connected', '✅ Conectado a HiveMQ Cloud');
+                    
+                    // Suscribirse a tópicos
+                    const topics = [
+                        'kiosol/mate3/all',
+                        'kiosol/mate3/system',
+                        'kiosol/mate3/inverter',
+                        'kiosol/mate3/charge_controller',
+                        'kiosol/mate3/battery'
+                    ];
+
+                    topics.forEach(topic => {
+                        mqttClient.subscribe(topic, (err) => {
+                            if (!err) {
+                                console.log('✅ Suscrito a:', topic);
+                            } else {
+                                console.error('❌ Error suscribiendo a:', topic, err);
+                            }
+                        });
+                    });
+
+                    // Actualizar UI
+                    document.querySelector('[onclick="connectHiveMQDirect()"]').style.display = 'none';
+                    document.querySelector('[onclick="connectMQTT()"]').style.display = 'none';
+                    document.getElementById('disconnectBtn').style.display = 'inline-block';
+                    
+                    // Reiniciar contadores
+                    mqttMessageCount = 0;
+                    lastConnectionStatus = Date.now();
+                    
+                    showError('🎉 ¡Conectado exitosamente a HiveMQ Cloud!');
+                });
+
+                mqttClient.on('error', (error) => {
+                    console.error('❌ ERROR HIVEMQ:', error);
+                    console.error('🔍 Mensaje:', error.message);
+                    console.error('🔍 Stack:', error.stack);
+                    
+                    updateConnectionStatus('disconnected', 'Error: ' + error.message);
+                    showError('❌ Error HiveMQ: ' + error.message);
+                });
+
+                mqttClient.on('close', () => {
+                    console.log('🔌 Conexión HiveMQ cerrada');
+                    isConnected = false;
+                    updateConnectionStatus('disconnected', 'Conexión cerrada');
+                    resetMQTTInterface();
+                });
+
+                mqttClient.on('message', (topic, message, packet) => {
+                    console.log('📨 MENSAJE DE HIVEMQ:', topic, message.toString());
+                    mqttMessageCount++;
+                    document.getElementById('mqttMessages').textContent = mqttMessageCount;
+                    
+                    onMQTTMessageArrived({
+                        destinationName: topic,
+                        payloadString: message.toString()
+                    });
+                });
+
+            } catch (error) {
+                console.error('💥 EXCEPCIÓN HIVEMQ:', error);
+                updateConnectionStatus('disconnected', 'Error: ' + error.message);
+                showError('Error: ' + error.message);
+            }
         }
 
         // Test con broker público
