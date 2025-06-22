@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MATE3 Solar Monitor - Kiosol Universidad de los Andes</title>
+    <title>MATE3 Solar Monitor - Universidad de los Andes</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    <style>
+    <link rel="stylesheet" href="#styles">
+    <style id="styles">
         /* ===== RESET Y BASE ===== */
         * {
             margin: 0;
@@ -20,6 +21,21 @@
             color: #fff;
             min-height: 100vh;
             overflow-x: hidden;
+        }
+
+        /* ===== VARIABLES CSS ===== */
+        :root {
+            --primary-color: #00ff88;
+            --secondary-color: #667eea;
+            --danger-color: #ff4444;
+            --warning-color: #ffd700;
+            --info-color: #0099ff;
+            --success-color: #00ff88;
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-muted: #a0a0a0;
+            --border-radius: 15px;
+            --transition: all 0.3s ease;
         }
 
         /* ===== LAYOUT PRINCIPAL ===== */
@@ -45,24 +61,119 @@
         }
 
         .subtitle {
-            color: #a0a0a0;
+            color: var(--text-muted);
             font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+
+        .project-info {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            border: 1px solid var(--glass-border);
+        }
+
+        /* ===== COMPONENTES UI ===== */
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: var(--transition);
+            font-size: 0.9em;
+            border: 1px solid transparent;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            background: #00cc66;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: var(--secondary-color);
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+            color: #fff;
+        }
+
+        .btn-warning {
+            background: var(--warning-color);
+            color: #000;
+        }
+
+        /* ===== BARRA DE ESTADO ===== */
+        .status-bar {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border-radius: var(--border-radius);
+            padding: 15px 25px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: fadeIn 1s ease-out 0.2s both;
+            border: 1px solid var(--glass-border);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: var(--success-color);
+            box-shadow: 0 0 10px var(--success-color);
+        }
+
+        .status-dot.disconnected {
+            background: var(--danger-color);
+            box-shadow: 0 0 10px var(--danger-color);
+        }
+
+        .status-dot.connecting {
+            background: var(--warning-color);
+            box-shadow: 0 0 10px var(--warning-color);
         }
 
         /* ===== PANELES DE CONFIGURACIÓN ===== */
         .config-panel {
-            background: rgba(255, 255, 255, 0.1);
+            background: var(--glass-bg);
             backdrop-filter: blur(10px);
-            border-radius: 15px;
+            border-radius: var(--border-radius);
             padding: 20px;
             margin-bottom: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid var(--glass-border);
             display: none;
+            animation: slideIn 0.3s ease-out;
         }
 
         .config-panel.show {
             display: block;
-            animation: fadeIn 0.3s ease-out;
         }
 
         .config-grid {
@@ -86,21 +197,24 @@
 
         .input-group input, .input-group select {
             padding: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            border: 1px solid var(--glass-border);
             border-radius: 8px;
-            background: rgba(255, 255, 255, 0.1);
+            background: var(--glass-bg);
             color: white;
             font-size: 14px;
+            transition: var(--transition);
         }
 
-        .input-group input::placeholder {
-            color: rgba(255, 255, 255, 0.6);
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
         }
 
         /* ===== CONTROLES ===== */
         .control-panel {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 15px;
+            background: var(--glass-bg);
+            border-radius: var(--border-radius);
             padding: 15px;
             margin-bottom: 20px;
             display: flex;
@@ -108,110 +222,13 @@
             align-items: center;
             justify-content: space-between;
             flex-wrap: wrap;
+            border: 1px solid var(--glass-border);
         }
 
         .control-group {
             display: flex;
             gap: 10px;
             align-items: center;
-        }
-
-        .btn {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.3s;
-            font-size: 0.9em;
-        }
-
-        .btn-primary {
-            background: #00ff88;
-            color: #000;
-        }
-
-        .btn-primary:hover {
-            background: #00cc66;
-        }
-
-        .btn-secondary {
-            background: #667eea;
-            color: #fff;
-        }
-
-        .btn-secondary:hover {
-            background: #5a67d8;
-        }
-
-        .btn-danger {
-            background: #ff4444;
-            color: #fff;
-        }
-
-        .btn-danger:hover {
-            background: #cc3333;
-        }
-
-        .time-btn {
-            padding: 6px 12px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            background: transparent;
-            color: #fff;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 0.85em;
-        }
-
-        .time-btn.active {
-            background: rgba(255, 255, 255, 0.2);
-            border-color: #00ff88;
-        }
-
-        .time-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        /* ===== ESTADO Y CONEXIÓN ===== */
-        .status-bar {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 15px 25px;
-            margin-bottom: 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            animation: fadeIn 1s ease-out 0.2s both;
-        }
-
-        .status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .status-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
-        .status-dot.connected {
-            background: #00ff88;
-            box-shadow: 0 0 10px #00ff88;
-        }
-
-        .status-dot.disconnected {
-            background: #ff4444;
-            box-shadow: 0 0 10px #ff4444;
-        }
-
-        .status-dot.connecting {
-            background: #ffd700;
-            box-shadow: 0 0 10px #ffd700;
         }
 
         /* ===== TARJETAS DE MÉTRICAS ===== */
@@ -223,12 +240,12 @@
         }
 
         .card {
-            background: rgba(255, 255, 255, 0.05);
+            background: var(--glass-bg);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--glass-border);
             border-radius: 20px;
             padding: 25px;
-            transition: all 0.3s ease;
+            transition: var(--transition);
             animation: fadeInUp 1s ease-out;
             animation-fill-mode: both;
         }
@@ -259,7 +276,7 @@
         }
 
         .metric-label {
-            color: #a0a0a0;
+            color: var(--text-muted);
             font-size: 0.9em;
         }
 
@@ -271,15 +288,15 @@
 
         .metric-value.primary {
             font-size: 1.4em;
-            color: #00ff88;
+            color: var(--primary-color);
         }
 
         .metric-value.warning {
-            color: #ffd700;
+            color: var(--warning-color);
         }
 
         .metric-value.critical {
-            color: #ff4444;
+            color: var(--danger-color);
         }
 
         /* ===== GAUGE PARA BATERÍA ===== */
@@ -315,9 +332,9 @@
 
         /* ===== GRÁFICAS ===== */
         .chart-container {
-            background: rgba(255, 255, 255, 0.05);
+            background: var(--glass-bg);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--glass-border);
             border-radius: 20px;
             padding: 25px;
             margin-bottom: 30px;
@@ -340,66 +357,61 @@
 
         .chart-btn {
             padding: 8px 16px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            border: 1px solid var(--glass-border);
             background: transparent;
             color: #fff;
             border-radius: 20px;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: var(--transition);
             font-size: 0.85em;
         }
 
         .chart-btn.active {
             background: rgba(0, 255, 136, 0.2);
-            border-color: #00ff88;
-            color: #00ff88;
+            border-color: var(--primary-color);
+            color: var(--primary-color);
         }
 
         .chart-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .data-info {
-            font-size: 0.85em;
-            color: #a0a0a0;
-            text-align: center;
-            margin-top: 10px;
+            background: var(--glass-bg);
         }
 
         /* ===== ALERTAS ===== */
         .alert {
-            background: rgba(255, 67, 54, 0.2);
-            border: 1px solid rgba(255, 67, 54, 0.5);
             border-radius: 10px;
             padding: 15px;
             margin-bottom: 20px;
             display: none;
             animation: slideIn 0.3s ease-out;
+            border: 1px solid;
         }
 
         .alert.show {
             display: block;
         }
 
-        /* ===== DEBUG PANEL ===== */
-        .debug-panel {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 10px;
-            padding: 15px;
-            margin: 20px 0;
-            font-family: 'Courier New', monospace;
-            font-size: 0.8em;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        .alert.success {
+            background: rgba(0, 255, 136, 0.2);
+            border-color: var(--success-color);
+            color: var(--success-color);
         }
 
-        /* ===== INFO PANEL ===== */
-        .info-panel {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 15px;
-            padding: 20px;
-            margin-top: 30px;
-            text-align: center;
-            color: #a0a0a0;
+        .alert.warning {
+            background: rgba(255, 215, 0, 0.2);
+            border-color: var(--warning-color);
+            color: var(--warning-color);
+        }
+
+        .alert.error {
+            background: rgba(255, 68, 68, 0.2);
+            border-color: var(--danger-color);
+            color: var(--danger-color);
+        }
+
+        .alert.info {
+            background: rgba(0, 153, 255, 0.2);
+            border-color: var(--info-color);
+            color: var(--info-color);
         }
 
         /* ===== ANIMACIONES ===== */
@@ -475,6 +487,35 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* ===== MODO OSCURO MEJORADO ===== */
+        body.dark-mode {
+            --glass-bg: rgba(0, 0, 0, 0.2);
+            --glass-border: rgba(255, 255, 255, 0.05);
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%);
+        }
+
+        /* ===== UTILIDADES ===== */
+        .hidden {
+            display: none !important;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .mb-20 {
+            margin-bottom: 20px;
+        }
+
+        .mt-20 {
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -482,12 +523,18 @@
         <!-- ===== HEADER ===== -->
         <header>
             <h1>🌞 MATE3 Solar Monitor</h1>
-            <p class="subtitle">Sistema Fotovoltaico Kiosol - Universidad de los Andes</p>
+            <p class="subtitle">Sistema de Monitoreo Fotovoltaico en Tiempo Real</p>
+            <div class="project-info">
+                <strong>🎓 Proyecto de Tesis - Universidad de los Andes</strong><br>
+                <strong>Autor:</strong> Andrés Santiago Gómez Blanco | 
+                <strong>Laboratorio:</strong> Kiosol | 
+                <strong>Fecha:</strong> Junio 2025
+            </div>
         </header>
 
         <!-- ===== PANEL DE CONFIGURACIÓN MQTT ===== -->
         <div class="config-panel" id="mqttConfigPanel">
-            <h3 style="margin-bottom: 15px; color: #fff;">🔌 Configuración MQTT</h3>
+            <h3 class="mb-20">🔌 Configuración MQTT HiveMQ Cloud</h3>
             <div class="config-grid">
                 <div class="input-group">
                     <label>Host del Broker</label>
@@ -517,27 +564,32 @@
                     <input type="text" id="mqttClientId">
                 </div>
             </div>
+            <div class="text-center">
+                <button class="btn btn-primary" onclick="AppManager.saveMqttConfig()">💾 Guardar Configuración</button>
+                <button class="btn btn-secondary" onclick="UIManager.togglePanel('mqttConfigPanel')">❌ Cerrar</button>
+            </div>
         </div>
 
         <!-- ===== CONTROLES PRINCIPALES ===== -->
         <div class="control-panel">
             <div class="control-group">
-                <button class="btn btn-primary" onclick="MQTTManager.connectHiveMQ()">🔌 Conectar HiveMQ</button>
-                <button class="btn btn-danger" onclick="MQTTManager.disconnect()" style="display: none;" id="disconnectBtn">🔌 Desconectar</button>
+                <button class="btn btn-primary" onclick="MQTTManager.connectHiveMQ()" id="connectBtn">🔌 Conectar HiveMQ</button>
+                <button class="btn btn-danger hidden" onclick="MQTTManager.disconnect()" id="disconnectBtn">🔌 Desconectar</button>
                 <button class="btn btn-secondary" onclick="UIManager.togglePanel('mqttConfigPanel')">⚙️ Config MQTT</button>
             </div>
             <div class="control-group">
                 <span>Rango de tiempo:</span>
-                <div class="time-range-selector">
-                    <button class="time-btn" onclick="ChartManager.changeTimeRange(1)" data-hours="1">1h</button>
-                    <button class="time-btn" onclick="ChartManager.changeTimeRange(6)" data-hours="6">6h</button>
-                    <button class="time-btn" onclick="ChartManager.changeTimeRange(12)" data-hours="12">12h</button>
-                    <button class="time-btn active" onclick="ChartManager.changeTimeRange(24)" data-hours="24">24h</button>
+                <div>
+                    <button class="chart-btn" onclick="ChartManager.changeTimeRange(1)" data-hours="1">1h</button>
+                    <button class="chart-btn" onclick="ChartManager.changeTimeRange(6)" data-hours="6">6h</button>
+                    <button class="chart-btn" onclick="ChartManager.changeTimeRange(12)" data-hours="12">12h</button>
+                    <button class="chart-btn active" onclick="ChartManager.changeTimeRange(24)" data-hours="24">24h</button>
                 </div>
             </div>
             <div class="control-group">
-                <button class="btn btn-secondary" onclick="DataManager.downloadCSV()">📥 Descargar CSV</button>
-                <button class="btn btn-secondary" onclick="DataManager.clearHistory()">🗑️ Limpiar Datos</button>
+                <button class="btn btn-secondary" onclick="DataManager.downloadCSV()">📥 CSV</button>
+                <button class="btn btn-secondary" onclick="DataManager.clearHistory()">🗑️ Limpiar</button>
+                <button class="btn btn-secondary" onclick="UIManager.showSystemInfo()">📊 Info</button>
             </div>
         </div>
 
@@ -545,20 +597,14 @@
         <div class="status-bar">
             <div class="status-indicator">
                 <span class="status-dot disconnected" id="connectionStatus"></span>
-                <span id="connectionText">Desconectado</span>
+                <span id="connectionText">Desconectado - Presiona "Conectar HiveMQ"</span>
             </div>
             <div id="lastUpdate">Última actualización: --:--:--</div>
         </div>
 
-        <!-- ===== ALERTA ===== -->
+        <!-- ===== ALERTA GLOBAL ===== -->
         <div class="alert" id="alertBox">
-            <strong>⚠️ Alerta:</strong> <span id="alertMessage"></span>
-        </div>
-
-        <!-- ===== PANEL DE DEBUG ===== -->
-        <div class="debug-panel">
-            <h3>🔍 Debug - Últimos Datos:</h3>
-            <pre id="debugData">Esperando conexión...</pre>
+            <span id="alertMessage"></span>
         </div>
 
         <!-- ===== TARJETAS DE MÉTRICAS ===== -->
@@ -611,10 +657,6 @@
                     <span class="metric-label">Corriente Salida</span>
                     <span class="metric-value" id="ccOutputCurrent">-- A</span>
                 </div>
-                <div class="metric">
-                    <span class="metric-label">Energía Hoy</span>
-                    <span class="metric-value" id="energyOutputToday">-- kWh</span>
-                </div>
             </div>
 
             <!-- Batería -->
@@ -643,35 +685,6 @@
                     <span class="metric-label">SoC Mínimo</span>
                     <span class="metric-value" id="batteryMinSoc">-- %</span>
                 </div>
-                <div class="metric">
-                    <span class="metric-label">Días desde completa</span>
-                    <span class="metric-value" id="daysSinceFull">--</span>
-                </div>
-            </div>
-
-            <!-- Shunts -->
-            <div class="card">
-                <h2><span class="card-icon">⚡</span> Monitoreo de Corriente</h2>
-                <div class="metric">
-                    <span class="metric-label">Shunt A</span>
-                    <span class="metric-value" id="shuntACurrent">-- A</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Shunt B</span>
-                    <span class="metric-value" id="shuntBCurrent">-- A</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Energía Entrada</span>
-                    <span class="metric-value" id="energyInputToday">-- kWh</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Energía Salida</span>
-                    <span class="metric-value" id="energyOutputBatteryToday">-- kWh</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Ah Consumidos</span>
-                    <span class="metric-value" id="ahOutputToday">-- Ah</span>
-                </div>
             </div>
 
             <!-- Sistema -->
@@ -682,10 +695,6 @@
                     <span class="metric-value primary" id="sysVoltage">-- V</span>
                 </div>
                 <div class="metric">
-                    <span class="metric-label">Tiempo Sistema</span>
-                    <span class="metric-value" id="sysTime">--</span>
-                </div>
-                <div class="metric">
                     <span class="metric-label">Mensajes MQTT</span>
                     <span class="metric-value" id="mqttMessages">--</span>
                 </div>
@@ -694,8 +703,12 @@
                     <span class="metric-value" id="systemStatus">--</span>
                 </div>
                 <div class="metric">
-                    <span class="metric-label">Fuente de Datos</span>
-                    <span class="metric-value" id="dataSource">MQTT</span>
+                    <span class="metric-label">Datos en Memoria</span>
+                    <span class="metric-value" id="dataCount">--</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Tiempo Online</span>
+                    <span class="metric-value" id="uptime">--</span>
                 </div>
             </div>
         </div>
@@ -704,32 +717,18 @@
         <div class="chart-container">
             <h2>📊 Gráficas del Sistema - <span id="chartTimeRange">Últimas 24 horas</span></h2>
             <div class="chart-selector">
-                <button class="chart-btn active" onclick="ChartManager.showChart('power')">⚡ Potencia Solar</button>
-                <button class="chart-btn" onclick="ChartManager.showChart('soc')">🔋 Estado de Carga</button>
-                <button class="chart-btn" onclick="ChartManager.showChart('voltage')">📊 Voltajes Sistema</button>
-                <button class="chart-btn" onclick="ChartManager.showChart('voltage_pv')">☀️ Voltaje PV</button>
+                <button class="chart-btn active" onclick="ChartManager.showChart('power')">⚡ Potencia</button>
+                <button class="chart-btn" onclick="ChartManager.showChart('soc')">🔋 SoC</button>
+                <button class="chart-btn" onclick="ChartManager.showChart('voltage')">📊 Voltajes</button>
                 <button class="chart-btn" onclick="ChartManager.showChart('current')">⚡ Corrientes</button>
-                <button class="chart-btn" onclick="ChartManager.showChart('shunts')">🔌 Shunts</button>
-                <button class="chart-btn" onclick="ChartManager.showChart('energy')">💡 Energía</button>
             </div>
             <div class="chart-wrapper">
                 <canvas id="mainChart"></canvas>
             </div>
-            <div class="data-info" id="chartInfo">
-                <span id="dataPointsInfo">Mostrando -- puntos</span> | 
-                <span id="avgInfo">--</span> |
-                <span id="maxInfo">--</span>
-            </div>
-        </div>
-
-        <!-- ===== INFO PANEL ===== -->
-        <div class="info-panel">
-            <p>🌱 Sistema de monitoreo solar en tiempo real vía MQTT</p>
-            <p>💻 Desarrollado por: Andrés Santiago Gómez Blanco | Universidad de los Andes</p>
-            <p>📊 Datos almacenados localmente con sincronización en la nube</p>
         </div>
     </div>
 
+    <!-- ===== SCRIPTS MODULARES ===== -->
     <script>
         // ===== CONFIGURACIÓN GLOBAL =====
         const CONFIG = {
@@ -745,14 +744,9 @@
                     power: '#ffd700',
                     soc: '#00ff88',
                     voltage_system: '#00aaff',
-                    voltage_pv: '#ff8800',
                     voltage_battery: '#ff00aa',
                     current_pv: '#88ff00',
-                    current_output: '#00ffaa',
-                    shunt_a: '#ff4444',
-                    shunt_b: '#44ff44',
-                    energy_input: '#ffaa00',
-                    energy_output: '#aa00ff'
+                    current_output: '#00ffaa'
                 }
             },
             STORAGE: {
@@ -761,7 +755,8 @@
                     HISTORY: 'mate3HistoryData',
                     CONFIG: 'mate3MqttConfig'
                 }
-            }
+            },
+            VERSION: '2.0.0'
         };
 
         // ===== ESTADO GLOBAL =====
@@ -769,7 +764,8 @@
             mqtt: {
                 client: null,
                 connected: false,
-                messageCount: 0
+                messageCount: 0,
+                connectTime: null
             },
             chart: {
                 instance: null,
@@ -789,17 +785,17 @@
             }
 
             static connectHiveMQ() {
-                const url = `wss://${CONFIG.MQTT.HOST}:${CONFIG.MQTT.PORT}/mqtt`;
+                const config = AppManager.getMqttConfig();
+                const url = `wss://${config.host}:${config.port}/mqtt`;
                 const clientId = this.generateClientId();
 
                 console.log('🔗 Conectando a HiveMQ:', url);
-
-                UIManager.updateConnectionStatus('connecting', 'Conectando a HiveMQ...');
+                UIManager.updateConnectionStatus('connecting', 'Conectando a HiveMQ Cloud...');
 
                 const options = {
                     clientId: clientId,
-                    username: CONFIG.MQTT.USERNAME,
-                    password: CONFIG.MQTT.PASSWORD,
+                    username: config.username,
+                    password: config.password,
                     clean: true,
                     connectTimeout: 30000,
                     keepalive: 60,
@@ -814,20 +810,16 @@
             static setupEventHandlers() {
                 const client = AppState.mqtt.client;
 
-                client.on('connect', (connack) => {
+                client.on('connect', () => {
                     console.log('✅ Conectado a HiveMQ Cloud!');
                     AppState.mqtt.connected = true;
-                    AppState.mqtt.messageCount = 0;
+                    AppState.mqtt.connectTime = new Date();
                     
-                    UIManager.updateConnectionStatus('connected', '✅ Conectado a HiveMQ');
+                    UIManager.updateConnectionStatus('connected', '✅ Conectado a HiveMQ Cloud');
                     UIManager.showAlert('🎉 Conectado exitosamente a HiveMQ Cloud!', 'success');
                     
-                    // Suscribirse a tópicos
                     this.subscribeToTopics();
-                    
-                    // Actualizar UI
-                    document.getElementById('disconnectBtn').style.display = 'inline-block';
-                    document.querySelector('[onclick="MQTTManager.connectHiveMQ()"]').style.display = 'none';
+                    UIManager.toggleButtons(true);
                 });
 
                 client.on('error', (error) => {
@@ -847,12 +839,13 @@
             }
 
             static subscribeToTopics() {
+                const config = AppManager.getMqttConfig();
                 const topics = [
-                    `${CONFIG.MQTT.TOPIC_BASE}/all`,
-                    `${CONFIG.MQTT.TOPIC_BASE}/system`,
-                    `${CONFIG.MQTT.TOPIC_BASE}/inverter`,
-                    `${CONFIG.MQTT.TOPIC_BASE}/charge_controller`,
-                    `${CONFIG.MQTT.TOPIC_BASE}/battery`
+                    `${config.topicBase}/all`,
+                    `${config.topicBase}/system`,
+                    `${config.topicBase}/inverter`,
+                    `${config.topicBase}/charge_controller`,
+                    `${config.topicBase}/battery`
                 ];
 
                 topics.forEach(topic => {
@@ -873,9 +866,6 @@
                     
                     const data = JSON.parse(message.toString());
                     console.log('📨 Mensaje recibido:', topic, data);
-                    
-                    // Actualizar debug panel
-                    document.getElementById('debugData').textContent = JSON.stringify(data, null, 2);
                     
                     // Procesar datos según el tópico
                     if (topic.endsWith('/all')) {
@@ -904,10 +894,7 @@
             static handleDisconnection() {
                 AppState.mqtt.connected = false;
                 UIManager.updateConnectionStatus('disconnected', 'Desconectado');
-                
-                // Resetear UI
-                document.getElementById('disconnectBtn').style.display = 'none';
-                document.querySelector('[onclick="MQTTManager.connectHiveMQ()"]').style.display = 'inline-block';
+                UIManager.toggleButtons(false);
             }
         }
 
@@ -967,14 +954,9 @@
                         power: power,
                         soc: data.battery?.soc || 0,
                         voltage_system: parseFloat(data.system?.battery_voltage) || 0,
-                        voltage_pv: pvVoltage,
                         voltage_battery: parseFloat(data.battery?.voltage) || 0,
                         current_pv: pvCurrent,
-                        current_output: parseFloat(data.charge_controller?.output_current) || 0,
-                        shunt_a: parseFloat(data.battery?.shunt_a_current) || 0,
-                        shunt_b: parseFloat(data.battery?.shunt_b_current) || 0,
-                        energy_input: parseFloat(data.battery?.input_kwh_today) || 0,
-                        energy_output: parseFloat(data.battery?.output_kwh_today) || 0
+                        current_output: parseFloat(data.charge_controller?.output_current) || 0
                     };
 
                     AppState.data.history.push(historyEntry);
@@ -1031,11 +1013,11 @@
                     return;
                 }
 
-                let csv = 'Timestamp,Hora,Potencia(W),SoC(%),V_Sistema(V),V_PV(V),I_PV(A),V_Bateria(V),Shunt_A(A),Shunt_B(A),E_Entrada(kWh),E_Salida(kWh)\n';
+                let csv = 'Timestamp,Hora,Potencia(W),SoC(%),V_Sistema(V),V_Bateria(V),I_PV(A),I_Salida(A)\n';
                 
                 AppState.data.history.forEach(item => {
                     const date = new Date(item.timestamp);
-                    csv += `${item.timestamp},${date.toLocaleString('es-CO')},${item.power.toFixed(2)},${item.soc},${item.voltage_system},${item.voltage_pv},${item.current_pv},${item.voltage_battery},${item.shunt_a},${item.shunt_b},${item.energy_input},${item.energy_output}\n`;
+                    csv += `${item.timestamp},${date.toLocaleString('es-CO')},${item.power.toFixed(2)},${item.soc},${item.voltage_system},${item.voltage_battery},${item.current_pv},${item.current_output}\n`;
                 });
 
                 const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -1046,7 +1028,32 @@
                 a.click();
                 window.URL.revokeObjectURL(url);
                 
-                UIManager.showAlert('📥 Archivo CSV descargado', 'success');
+                UIManager.showAlert('📥 Archivo CSV descargado exitosamente', 'success');
+            }
+
+            static updateSystemStats() {
+                // Actualizar contador de datos
+                document.getElementById('dataCount').textContent = AppState.data.history.length;
+                
+                // Actualizar tiempo online
+                if (AppState.mqtt.connectTime) {
+                    const uptime = Math.floor((new Date() - AppState.mqtt.connectTime) / 1000);
+                    document.getElementById('uptime').textContent = this.formatDuration(uptime);
+                }
+            }
+
+            static formatDuration(seconds) {
+                const hours = Math.floor(seconds / 3600);
+                const minutes = Math.floor((seconds % 3600) / 60);
+                const secs = seconds % 60;
+                
+                if (hours > 0) {
+                    return `${hours}h ${minutes}m`;
+                } else if (minutes > 0) {
+                    return `${minutes}m ${secs}s`;
+                } else {
+                    return `${secs}s`;
+                }
             }
         }
 
@@ -1092,7 +1099,6 @@
                 const pvVoltage = parseFloat(cc.input_voltage) || 0;
                 const pvCurrent = parseFloat(cc.input_current) || 0;
                 const outputCurrent = parseFloat(cc.output_current) || 0;
-                const outputKwh = parseFloat(cc.output_kwh) || 0;
                 const power = pvVoltage * pvCurrent;
 
                 document.getElementById('ccMode').textContent = cc.mode ? cc.mode.trim() : '--';
@@ -1100,7 +1106,6 @@
                 document.getElementById('pvCurrent').textContent = `${pvCurrent.toFixed(1)} A`;
                 document.getElementById('pvPower').textContent = `${power.toFixed(1)} W`;
                 document.getElementById('ccOutputCurrent').textContent = `${outputCurrent.toFixed(1)} A`;
-                document.getElementById('energyOutputToday').textContent = `${outputKwh.toFixed(2)} kWh`;
             }
 
             static updateBattery(battery) {
@@ -1110,7 +1115,6 @@
                 const voltage = parseFloat(battery.voltage) || 0;
                 const temp = battery.temperature ? battery.temperature.toString().replace(' C', '') : '--';
                 const minSoc = battery.min_soc || 0;
-                const daysSinceFull = battery.days_since_full || 0;
 
                 // Actualizar gauge
                 document.getElementById('socValue').textContent = `${soc}%`;
@@ -1126,46 +1130,14 @@
                 document.getElementById('batteryVoltage').textContent = `${voltage.toFixed(1)} V`;
                 document.getElementById('batteryTemp').textContent = `${temp} °C`;
                 document.getElementById('batteryMinSoc').textContent = `${minSoc}%`;
-                document.getElementById('daysSinceFull').textContent = `${daysSinceFull.toFixed(1)}`;
-
-                // Shunts
-                const shuntA = parseFloat(battery.shunt_a_current) || 0;
-                const shuntB = parseFloat(battery.shunt_b_current) || 0;
-                const inputKwh = parseFloat(battery.input_kwh_today) || 0;
-                const outputKwh = parseFloat(battery.output_kwh_today) || 0;
-
-                document.getElementById('shuntACurrent').textContent = `${shuntA.toFixed(1)} A`;
-                document.getElementById('shuntBCurrent').textContent = `${shuntB.toFixed(1)} A`;
-                document.getElementById('energyInputToday').textContent = `${inputKwh.toFixed(2)} kWh`;
-                document.getElementById('energyOutputBatteryToday').textContent = `${outputKwh.toFixed(2)} kWh`;
-                
-                const ahOutput = Math.abs(shuntA) * 24;
-                document.getElementById('ahOutputToday').textContent = `${ahOutput.toFixed(1)} Ah`;
             }
 
             static updateSystem(system) {
                 if (!system) return;
 
                 const voltage = parseFloat(system.battery_voltage) || 0;
-                const time = this.formatSystemTime(system.time);
-
                 document.getElementById('sysVoltage').textContent = `${voltage.toFixed(1)} V`;
-                document.getElementById('sysTime').textContent = time;
                 document.getElementById('systemStatus').textContent = 'Online';
-            }
-
-            static formatSystemTime(timestamp) {
-                if (!timestamp) return '--:--:--';
-                
-                try {
-                    if (typeof timestamp === 'number') {
-                        const date = new Date(timestamp * 1000);
-                        return date.toLocaleTimeString('es-CO');
-                    }
-                    return timestamp.toString();
-                } catch (e) {
-                    return '--:--:--';
-                }
             }
         }
 
@@ -1204,7 +1176,7 @@
                 AppState.chart.currentTimeRange = hours;
                 
                 // Actualizar botones
-                document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('[data-hours]').forEach(btn => btn.classList.remove('active'));
                 document.querySelector(`[data-hours="${hours}"]`).classList.add('active');
                 
                 // Actualizar título
@@ -1258,9 +1230,6 @@
                     color: '#fff'
                 };
                 chart.update('none');
-
-                // Actualizar info
-                this.updateChartInfo(filteredData);
             }
 
             static getChartConfig(data) {
@@ -1313,19 +1282,6 @@
                             yAxisLabel: 'Voltaje (V)'
                         };
 
-                    case 'voltage_pv':
-                        return {
-                            datasets: [{
-                                label: 'Voltaje PV (V)',
-                                data: data.map(item => item.voltage_pv),
-                                borderColor: colors.voltage_pv,
-                                backgroundColor: colors.voltage_pv + '20',
-                                fill: true,
-                                tension: 0.4
-                            }],
-                            yAxisLabel: 'Voltaje PV (V)'
-                        };
-
                     case 'current':
                         return {
                             datasets: [
@@ -1345,44 +1301,6 @@
                             yAxisLabel: 'Corriente (A)'
                         };
 
-                    case 'shunts':
-                        return {
-                            datasets: [
-                                {
-                                    label: 'Shunt A (A)',
-                                    data: data.map(item => item.shunt_a),
-                                    borderColor: colors.shunt_a,
-                                    tension: 0.4
-                                },
-                                {
-                                    label: 'Shunt B (A)',
-                                    data: data.map(item => item.shunt_b),
-                                    borderColor: colors.shunt_b,
-                                    tension: 0.4
-                                }
-                            ],
-                            yAxisLabel: 'Corriente (A)'
-                        };
-
-                    case 'energy':
-                        return {
-                            datasets: [
-                                {
-                                    label: 'Energía Entrada (kWh)',
-                                    data: data.map(item => item.energy_input),
-                                    borderColor: colors.energy_input,
-                                    tension: 0.4
-                                },
-                                {
-                                    label: 'Energía Salida (kWh)',
-                                    data: data.map(item => item.energy_output),
-                                    borderColor: colors.energy_output,
-                                    tension: 0.4
-                                }
-                            ],
-                            yAxisLabel: 'Energía (kWh)'
-                        };
-
                     default:
                         return { datasets: [], yAxisLabel: '' };
                 }
@@ -1400,49 +1318,6 @@
                 
                 return `${hours}:${minutes}`;
             }
-
-            static updateChartInfo(data) {
-                if (!data.length) return;
-
-                const type = AppState.chart.currentType;
-                let values = [];
-                let unit = '';
-
-                switch (type) {
-                    case 'power':
-                        values = data.map(item => item.power);
-                        unit = 'W';
-                        break;
-                    case 'soc':
-                        values = data.map(item => item.soc);
-                        unit = '%';
-                        break;
-                    case 'voltage':
-                    case 'voltage_pv':
-                        values = data.map(item => item.voltage_system);
-                        unit = 'V';
-                        break;
-                    case 'current':
-                        values = data.map(item => item.current_pv);
-                        unit = 'A';
-                        break;
-                    case 'shunts':
-                        values = data.map(item => Math.abs(item.shunt_a));
-                        unit = 'A';
-                        break;
-                    case 'energy':
-                        values = data.map(item => item.energy_input);
-                        unit = 'kWh';
-                        break;
-                }
-
-                const avg = values.reduce((a, b) => a + b, 0) / values.length;
-                const max = Math.max(...values);
-
-                document.getElementById('dataPointsInfo').textContent = `Mostrando ${data.length} puntos`;
-                document.getElementById('avgInfo').textContent = `Promedio: ${avg.toFixed(2)} ${unit}`;
-                document.getElementById('maxInfo').textContent = `Máximo: ${max.toFixed(2)} ${unit}`;
-            }
         }
 
         // ===== GESTIÓN DE UI =====
@@ -1451,12 +1326,12 @@
                 const panel = document.getElementById(panelId);
                 const isVisible = panel.classList.contains('show');
                 
-                // Ocultar todos los paneles
+                // Cerrar todos los paneles
                 document.querySelectorAll('.config-panel').forEach(p => {
                     p.classList.remove('show');
                 });
                 
-                // Mostrar el panel solicitado si estaba oculto
+                // Mostrar el panel solicitado si no estaba visible
                 if (!isVisible) {
                     panel.classList.add('show');
                 }
@@ -1485,25 +1360,123 @@
                 
                 console.log(`📢 Alerta: ${message}`);
             }
+
+            static toggleButtons(connected) {
+                const connectBtn = document.getElementById('connectBtn');
+                const disconnectBtn = document.getElementById('disconnectBtn');
+                
+                if (connected) {
+                    connectBtn.classList.add('hidden');
+                    disconnectBtn.classList.remove('hidden');
+                } else {
+                    connectBtn.classList.remove('hidden');
+                    disconnectBtn.classList.add('hidden');
+                }
+            }
+
+            static showSystemInfo() {
+                const uptime = AppState.mqtt.connectTime ? 
+                    Math.floor((new Date() - AppState.mqtt.connectTime) / 1000) : 0;
+                
+                const info = `
+🎓 SISTEMA MATE3 - PROYECTO DE TESIS
+═══════════════════════════════════
+
+📊 Estadísticas del Sistema:
+• Versión: ${CONFIG.VERSION}
+• Datos en memoria: ${AppState.data.history.length}
+• Tiempo online: ${DataManager.formatDuration(uptime)}
+• Mensajes MQTT: ${AppState.mqtt.messageCount}
+
+🎯 Autor: Andrés Santiago Gómez Blanco
+🏛️ Universidad de los Andes
+🔬 Laboratorio Kiosol
+📅 Junio 2025
+
+✅ Sistema funcionando correctamente
+                `;
+                
+                this.showAlert(info, 'success');
+                console.log(info);
+            }
+        }
+
+        // ===== GESTIÓN DE APLICACIÓN =====
+        class AppManager {
+            static init() {
+                console.log('🚀 Inicializando MATE3 Dashboard v2.0...');
+                
+                // Generar ID de cliente único
+                document.getElementById('mqttClientId').value = MQTTManager.generateClientId();
+                
+                // Cargar configuración guardada
+                this.loadMqttConfig();
+                
+                // Inicializar componentes
+                ChartManager.init();
+                DataManager.loadFromStorage();
+                
+                // Actualizar estadísticas iniciales
+                DataManager.updateSystemStats();
+                
+                // Si hay datos históricos, actualizar gráfica
+                if (AppState.data.history.length > 0) {
+                    ChartManager.updateChart();
+                }
+                
+                // Mostrar mensaje de bienvenida
+                setTimeout(() => {
+                    UIManager.showAlert('🎓 Sistema MATE3 v2.0 cargado correctamente. Presiona "Conectar HiveMQ" para iniciar.', 'success');
+                }, 1000);
+                
+                console.log('✅ Dashboard inicializado correctamente');
+            }
+
+            static getMqttConfig() {
+                return {
+                    host: document.getElementById('mqttHost').value || CONFIG.MQTT.HOST,
+                    port: parseInt(document.getElementById('mqttPort').value) || CONFIG.MQTT.PORT,
+                    username: document.getElementById('mqttUsername').value || CONFIG.MQTT.USERNAME,
+                    password: document.getElementById('mqttPassword').value || CONFIG.MQTT.PASSWORD,
+                    topicBase: document.getElementById('mqttTopic').value || CONFIG.MQTT.TOPIC_BASE
+                };
+            }
+
+            static saveMqttConfig() {
+                const config = this.getMqttConfig();
+                try {
+                    localStorage.setItem(CONFIG.STORAGE.KEYS.CONFIG, JSON.stringify(config));
+                    UIManager.showAlert('✅ Configuración MQTT guardada correctamente', 'success');
+                } catch (e) {
+                    UIManager.showAlert('❌ Error guardando configuración', 'error');
+                }
+            }
+
+            static loadMqttConfig() {
+                try {
+                    const saved = localStorage.getItem(CONFIG.STORAGE.KEYS.CONFIG);
+                    if (saved) {
+                        const config = JSON.parse(saved);
+                        document.getElementById('mqttHost').value = config.host || CONFIG.MQTT.HOST;
+                        document.getElementById('mqttPort').value = config.port || CONFIG.MQTT.PORT;
+                        document.getElementById('mqttUsername').value = config.username || CONFIG.MQTT.USERNAME;
+                        document.getElementById('mqttPassword').value = config.password || CONFIG.MQTT.PASSWORD;
+                        document.getElementById('mqttTopic').value = config.topicBase || CONFIG.MQTT.TOPIC_BASE;
+                    }
+                } catch (e) {
+                    console.warn('Error cargando configuración MQTT:', e);
+                }
+            }
         }
 
         // ===== INICIALIZACIÓN =====
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 Inicializando MATE3 Dashboard...');
+            AppManager.init();
             
-            // Generar ID de cliente único
-            document.getElementById('mqttClientId').value = MQTTManager.generateClientId();
-            
-            // Inicializar componentes
-            ChartManager.init();
-            DataManager.loadFromStorage();
-            
-            // Si hay datos históricos, actualizar gráfica
-            if (AppState.data.history.length > 0) {
-                ChartManager.updateChart();
-            }
-            
-            console.log('✅ Dashboard inicializado correctamente');
+            // Actualizar estadísticas cada 30 segundos
+            setInterval(() => {
+                DataManager.updateSystemStats();
+            }, 30000);
         });
 
         // Limpiar al salir
