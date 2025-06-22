@@ -486,7 +486,8 @@
                     <label for="mqttPort">Puerto</label>
                     <select id="mqttPort">
                         <option value="8000">8000 (WebSocket)</option>
-                        <option value="8884" selected>8884 (WSS)</option>
+                        <option value="8883">8883 (WSS - HiveMQ)</option>
+                        <option value="8884">8884 (WSS)</option>
                     </select>
                 </div>
                 <div class="input-group">
@@ -495,11 +496,11 @@
                 </div>
                 <div class="input-group">
                     <label for="mqttUsername">Usuario</label>
-                    <input type="text" id="mqttUsername" placeholder="usuario" value="">
+                    <input type="text" id="mqttUsername" placeholder="usuario" value="kiosol">
                 </div>
                 <div class="input-group">
                     <label for="mqttPassword">Contraseña</label>
-                    <input type="password" id="mqttPassword" placeholder="contraseña" value="">
+                    <input type="password" id="mqttPassword" placeholder="contraseña" value="Proy&Kiosol888">
                 </div>
                 <div class="input-group">
                     <label for="mqttClientId">ID Cliente</label>
@@ -816,14 +817,25 @@
             if (saved) {
                 try {
                     const config = JSON.parse(saved);
-                    document.getElementById('mqttHost').value = config.host || '';
-                    document.getElementById('mqttPort').value = config.port || '8884';
+                    document.getElementById('mqttHost').value = config.host || '2a23f9476713427784953f7e7bf869e2.s1.eu.hivemq.cloud';
+                    document.getElementById('mqttPort').value = config.port || '8883';
                     document.getElementById('mqttTopic').value = config.topic || 'kiosol/mate3';
-                    document.getElementById('mqttUsername').value = config.username || '';
+                    document.getElementById('mqttUsername').value = config.username || 'kiosol';
                     document.getElementById('mqttClientId').value = config.clientId || generateClientId();
+                    // No cargamos la contraseña por seguridad, pero la ponemos por defecto
+                    if (!document.getElementById('mqttPassword').value) {
+                        document.getElementById('mqttPassword').value = 'Proy&Kiosol888';
+                    }
                 } catch (e) {
                     console.log('Error cargando configuración guardada');
                 }
+            } else {
+                // Configuración por defecto para HiveMQ Cloud Kiosol
+                document.getElementById('mqttHost').value = '2a23f9476713427784953f7e7bf869e2.s1.eu.hivemq.cloud';
+                document.getElementById('mqttPort').value = '8883';
+                document.getElementById('mqttTopic').value = 'kiosol/mate3';
+                document.getElementById('mqttUsername').value = 'kiosol';
+                document.getElementById('mqttPassword').value = 'Proy&Kiosol888';
             }
         }
 
@@ -855,7 +867,7 @@
                 const connectOptions = {
                     onSuccess: () => onMQTTConnect(topic),
                     onFailure: onMQTTConnectFailure,
-                    useSSL: port === 8884,
+                    useSSL: port === 8883 || port === 8884, // SSL para puertos seguros
                     timeout: 10,
                     keepAliveInterval: 60
                 };
