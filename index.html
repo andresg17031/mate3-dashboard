@@ -7,6 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
+        /* ===== RESET Y BASE ===== */
         * {
             margin: 0;
             padding: 0;
@@ -21,6 +22,7 @@
             overflow-x: hidden;
         }
 
+        /* ===== LAYOUT PRINCIPAL ===== */
         .container {
             max-width: 1600px;
             margin: 0 auto;
@@ -47,13 +49,20 @@
             font-size: 1.1em;
         }
 
-        .mqtt-config-panel {
+        /* ===== PANELES DE CONFIGURACIÓN ===== */
+        .config-panel {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             border-radius: 15px;
             padding: 20px;
             margin-bottom: 30px;
             border: 1px solid rgba(255, 255, 255, 0.2);
+            display: none;
+        }
+
+        .config-panel.show {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
         }
 
         .config-grid {
@@ -88,13 +97,83 @@
             color: rgba(255, 255, 255, 0.6);
         }
 
-        .mqtt-controls {
+        /* ===== CONTROLES ===== */
+        .control-panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
             display: flex;
-            gap: 10px;
-            justify-content: center;
+            gap: 20px;
+            align-items: center;
+            justify-content: space-between;
             flex-wrap: wrap;
         }
 
+        .control-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            font-size: 0.9em;
+        }
+
+        .btn-primary {
+            background: #00ff88;
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            background: #00cc66;
+        }
+
+        .btn-secondary {
+            background: #667eea;
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            background: #5a67d8;
+        }
+
+        .btn-danger {
+            background: #ff4444;
+            color: #fff;
+        }
+
+        .btn-danger:hover {
+            background: #cc3333;
+        }
+
+        .time-btn {
+            padding: 6px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: transparent;
+            color: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.85em;
+        }
+
+        .time-btn.active {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #00ff88;
+        }
+
+        .time-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* ===== ESTADO Y CONEXIÓN ===== */
         .status-bar {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
@@ -130,11 +209,12 @@
             box-shadow: 0 0 10px #ff4444;
         }
 
-        .status-dot.warning {
+        .status-dot.connecting {
             background: #ffd700;
             box-shadow: 0 0 10px #ffd700;
         }
 
+        /* ===== TARJETAS DE MÉTRICAS ===== */
         .grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -202,6 +282,38 @@
             color: #ff4444;
         }
 
+        /* ===== GAUGE PARA BATERÍA ===== */
+        .gauge-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 120px;
+            position: relative;
+            margin: 15px 0;
+        }
+
+        .gauge {
+            width: 120px;
+            height: 120px;
+            position: relative;
+        }
+
+        .gauge-circle {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        .gauge-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        /* ===== GRÁFICAS ===== */
         .chart-container {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
@@ -247,116 +359,6 @@
             background: rgba(255, 255, 255, 0.1);
         }
 
-        .gauge-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 120px;
-            position: relative;
-            margin: 15px 0;
-        }
-
-        .gauge {
-            width: 120px;
-            height: 120px;
-            position: relative;
-        }
-
-        .gauge-circle {
-            width: 100%;
-            height: 100%;
-            transform: rotate(-90deg);
-        }
-
-        .gauge-value {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 1.5em;
-            font-weight: bold;
-        }
-
-        .control-panel {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 15px;
-            padding: 15px;
-            margin-bottom: 20px;
-            display: flex;
-            gap: 20px;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-        }
-
-        .control-group {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .btn {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.3s;
-            font-size: 0.9em;
-        }
-
-        .btn-primary {
-            background: #00ff88;
-            color: #000;
-        }
-
-        .btn-primary:hover {
-            background: #00cc66;
-        }
-
-        .btn-secondary {
-            background: #667eea;
-            color: #fff;
-        }
-
-        .btn-secondary:hover {
-            background: #5a67d8;
-        }
-
-        .btn-danger {
-            background: #ff4444;
-            color: #fff;
-        }
-
-        .btn-danger:hover {
-            background: #cc3333;
-        }
-
-        .time-range-selector {
-            display: flex;
-            gap: 5px;
-        }
-
-        .time-btn {
-            padding: 6px 12px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            background: transparent;
-            color: #fff;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 0.85em;
-        }
-
-        .time-btn.active {
-            background: rgba(255, 255, 255, 0.2);
-            border-color: #00ff88;
-        }
-
-        .time-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
         .data-info {
             font-size: 0.85em;
             color: #a0a0a0;
@@ -364,19 +366,7 @@
             margin-top: 10px;
         }
 
-        .disconnected-overlay {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(255, 67, 54, 0.9);
-            color: white;
-            padding: 15px 20px;
-            border-radius: 10px;
-            display: none;
-            animation: fadeIn 0.5s;
-            z-index: 1000;
-        }
-
+        /* ===== ALERTAS ===== */
         .alert {
             background: rgba(255, 67, 54, 0.2);
             border: 1px solid rgba(255, 67, 54, 0.5);
@@ -384,17 +374,14 @@
             padding: 15px;
             margin-bottom: 20px;
             display: none;
+            animation: slideIn 0.3s ease-out;
         }
 
-        .info-panel {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 15px;
-            padding: 20px;
-            margin-top: 30px;
-            text-align: center;
-            color: #a0a0a0;
+        .alert.show {
+            display: block;
         }
 
+        /* ===== DEBUG PANEL ===== */
         .debug-panel {
             background: rgba(255, 255, 255, 0.05);
             border-radius: 10px;
@@ -405,6 +392,17 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
+        /* ===== INFO PANEL ===== */
+        .info-panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 30px;
+            text-align: center;
+            color: #a0a0a0;
+        }
+
+        /* ===== ANIMACIONES ===== */
         @keyframes fadeInDown {
             from {
                 opacity: 0;
@@ -432,12 +430,24 @@
             to { opacity: 1; }
         }
 
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
         @keyframes pulse {
             0% { opacity: 1; }
             50% { opacity: 0.5; }
             100% { opacity: 1; }
         }
 
+        /* ===== RESPONSIVE ===== */
         @media (max-width: 768px) {
             .grid {
                 grid-template-columns: 1fr;
@@ -469,105 +479,99 @@
 </head>
 <body>
     <div class="container">
+        <!-- ===== HEADER ===== -->
         <header>
             <h1>🌞 MATE3 Solar Monitor</h1>
-            <p class="subtitle">Sistema Fotovoltaico Kiosol - Universidad de los Andes (HiveMQ)</p>
+            <p class="subtitle">Sistema Fotovoltaico Kiosol - Universidad de los Andes</p>
         </header>
 
-        <!-- Panel de Configuración MQTT -->
-        <div class="mqtt-config-panel">
-            <h3 style="margin-bottom: 15px; color: #fff;">🔌 Configuración del Broker MQTT</h3>
+        <!-- ===== PANEL DE CONFIGURACIÓN MQTT ===== -->
+        <div class="config-panel" id="mqttConfigPanel">
+            <h3 style="margin-bottom: 15px; color: #fff;">🔌 Configuración MQTT</h3>
             <div class="config-grid">
                 <div class="input-group">
-                    <label for="mqttHost">Host del Broker</label>
-                    <input type="text" id="mqttHost" placeholder="broker.hivemq.com" value="2a23f9476713427784953f7e7bf869e2.s1.eu.hivemq.cloud">
+                    <label>Host del Broker</label>
+                    <input type="text" id="mqttHost" value="2a23f9476713427784953f7e7bf869e2.s1.eu.hivemq.cloud">
                 </div>
                 <div class="input-group">
-                    <label for="mqttPort">Puerto WSS (Solo Seguro)</label>
+                    <label>Puerto WSS</label>
                     <select id="mqttPort">
-                        <option value="8884" selected>8884 (WSS - Recomendado)</option>
-                        <option value="8883">8883 (WSS - HiveMQ Cloud)</option>
-                        <option value="443">443 (WSS - Puerto HTTPS)</option>
+                        <option value="8884" selected>8884 (WSS)</option>
+                        <option value="8883">8883 (WSS Alt)</option>
                     </select>
                 </div>
                 <div class="input-group">
-                    <label for="mqttTopic">Tópico Base</label>
-                    <input type="text" id="mqttTopic" placeholder="kiosol/mate3" value="kiosol/mate3">
+                    <label>Usuario</label>
+                    <input type="text" id="mqttUsername" value="kiosol">
                 </div>
                 <div class="input-group">
-                    <label for="mqttUsername">Usuario</label>
-                    <input type="text" id="mqttUsername" placeholder="usuario" value="kiosol">
+                    <label>Contraseña</label>
+                    <input type="password" id="mqttPassword" value="Proy&Kiosol888">
                 </div>
                 <div class="input-group">
-                    <label for="mqttPassword">Contraseña</label>
-                    <input type="password" id="mqttPassword" placeholder="contraseña" value="Proy&Kiosol888">
+                    <label>Tópico Base</label>
+                    <input type="text" id="mqttTopic" value="kiosol/mate3">
                 </div>
                 <div class="input-group">
-                    <label for="mqttClientId">ID Cliente</label>
-                    <input type="text" id="mqttClientId" placeholder="dashboard-client" value="">
+                    <label>ID Cliente</label>
+                    <input type="text" id="mqttClientId">
                 </div>
-            </div>
-            <div class="mqtt-controls">
-                <button class="btn btn-primary" onclick="connectHiveMQDirect()">🔌 Conectar HiveMQ (Directo)</button>
-                <button class="btn btn-secondary" onclick="connectMQTT()">🔧 Conectar Manual</button>
-                <button class="btn btn-danger" onclick="disconnectMQTT()" style="display: none;" id="disconnectBtn">🔌 Desconectar</button>
-                <button class="btn btn-secondary" onclick="toggleConfigPanel()">⚙️ Config</button>
-                <button class="btn btn-secondary" onclick="testPublicBroker()">🧪 Test Broker Público</button>
             </div>
         </div>
 
+        <!-- ===== CONTROLES PRINCIPALES ===== -->
         <div class="control-panel">
+            <div class="control-group">
+                <button class="btn btn-primary" onclick="MQTTManager.connectHiveMQ()">🔌 Conectar HiveMQ</button>
+                <button class="btn btn-danger" onclick="MQTTManager.disconnect()" style="display: none;" id="disconnectBtn">🔌 Desconectar</button>
+                <button class="btn btn-secondary" onclick="UIManager.togglePanel('mqttConfigPanel')">⚙️ Config MQTT</button>
+            </div>
             <div class="control-group">
                 <span>Rango de tiempo:</span>
                 <div class="time-range-selector">
-                    <button class="time-btn" onclick="changeTimeRange(1)" data-hours="1">1h</button>
-                    <button class="time-btn" onclick="changeTimeRange(6)" data-hours="6">6h</button>
-                    <button class="time-btn" onclick="changeTimeRange(12)" data-hours="12">12h</button>
-                    <button class="time-btn active" onclick="changeTimeRange(24)" data-hours="24">24h</button>
+                    <button class="time-btn" onclick="ChartManager.changeTimeRange(1)" data-hours="1">1h</button>
+                    <button class="time-btn" onclick="ChartManager.changeTimeRange(6)" data-hours="6">6h</button>
+                    <button class="time-btn" onclick="ChartManager.changeTimeRange(12)" data-hours="12">12h</button>
+                    <button class="time-btn active" onclick="ChartManager.changeTimeRange(24)" data-hours="24">24h</button>
                 </div>
             </div>
             <div class="control-group">
-                <button class="btn btn-secondary" onclick="downloadCompleteData()">📥 Descargar CSV</button>
-                <button class="btn btn-primary" onclick="clearHistoryData()">🗑️ Limpiar Historial</button>
+                <button class="btn btn-secondary" onclick="DataManager.downloadCSV()">📥 Descargar CSV</button>
+                <button class="btn btn-secondary" onclick="DataManager.clearHistory()">🗑️ Limpiar Datos</button>
             </div>
         </div>
 
+        <!-- ===== BARRA DE ESTADO ===== -->
         <div class="status-bar">
             <div class="status-indicator">
                 <span class="status-dot disconnected" id="connectionStatus"></span>
-                <span id="connectionText">Desconectado - Configure MQTT</span>
+                <span id="connectionText">Desconectado</span>
             </div>
             <div id="lastUpdate">Última actualización: --:--:--</div>
         </div>
 
+        <!-- ===== ALERTA ===== -->
         <div class="alert" id="alertBox">
             <strong>⚠️ Alerta:</strong> <span id="alertMessage"></span>
         </div>
 
-        <div class="disconnected-overlay" id="disconnectedOverlay">
-            ⚠️ Sistema desconectado - Sin datos por más de 2 minutos
-        </div>
-
-        <!-- Panel de Debug -->
+        <!-- ===== PANEL DE DEBUG ===== -->
         <div class="debug-panel">
-            <h3>🔍 Debug - Últimos Datos Recibidos:</h3>
-            <pre id="debugData">Esperando conexión MQTT...</pre>
+            <h3>🔍 Debug - Últimos Datos:</h3>
+            <pre id="debugData">Esperando conexión...</pre>
         </div>
 
-        <!-- Tarjetas de Datos en Tiempo Real -->
+        <!-- ===== TARJETAS DE MÉTRICAS ===== -->
         <div class="grid">
-            <!-- Tarjeta Inversor -->
+            <!-- Inversor -->
             <div class="card">
-                <h2>
-                    <span class="card-icon">🔌</span>
-                    Inversor
-                </h2>
+                <h2><span class="card-icon">🔌</span> Inversor</h2>
                 <div class="metric">
                     <span class="metric-label">Estado</span>
                     <span class="metric-value" id="inverterMode">--</span>
                 </div>
                 <div class="metric">
-                    <span class="metric-label">Voltaje Salida AC</span>
+                    <span class="metric-label">Voltaje AC</span>
                     <span class="metric-value primary" id="acOutput">-- V</span>
                 </div>
                 <div class="metric">
@@ -579,27 +583,24 @@
                     <span class="metric-value" id="acMode">--</span>
                 </div>
                 <div class="metric">
-                    <span class="metric-label">Estado</span>
+                    <span class="metric-label">Estado Sistema</span>
                     <span class="metric-value" id="inverterStatus">--</span>
                 </div>
             </div>
 
-            <!-- Tarjeta Controlador de Carga -->
+            <!-- Controlador de Carga -->
             <div class="card">
-                <h2>
-                    <span class="card-icon">☀️</span>
-                    Controlador de Carga
-                </h2>
+                <h2><span class="card-icon">☀️</span> Controlador Solar</h2>
                 <div class="metric">
                     <span class="metric-label">Estado</span>
                     <span class="metric-value" id="ccMode">--</span>
                 </div>
                 <div class="metric">
-                    <span class="metric-label">Voltaje Paneles (PV)</span>
+                    <span class="metric-label">Voltaje PV</span>
                     <span class="metric-value primary" id="pvVoltage">-- V</span>
                 </div>
                 <div class="metric">
-                    <span class="metric-label">Corriente Entrada PV</span>
+                    <span class="metric-label">Corriente PV</span>
                     <span class="metric-value" id="pvCurrent">-- A</span>
                 </div>
                 <div class="metric">
@@ -611,34 +612,21 @@
                     <span class="metric-value" id="ccOutputCurrent">-- A</span>
                 </div>
                 <div class="metric">
-                    <span class="metric-label">Energía Salida Hoy</span>
+                    <span class="metric-label">Energía Hoy</span>
                     <span class="metric-value" id="energyOutputToday">-- kWh</span>
                 </div>
             </div>
 
-            <!-- Tarjeta Batería -->
+            <!-- Batería -->
             <div class="card">
-                <h2>
-                    <span class="card-icon">🔋</span>
-                    Batería
-                </h2>
+                <h2><span class="card-icon">🔋</span> Sistema de Batería</h2>
                 <div class="gauge-container">
                     <div class="gauge">
                         <svg class="gauge-circle" viewBox="0 0 36 36">
-                            <path d="M18 2.0845
-                                a 15.9155 15.9155 0 0 1 0 31.831
-                                a 15.9155 15.9155 0 0 1 0 -31.831"
-                                fill="none"
-                                stroke="rgba(255,255,255,0.1)"
-                                stroke-width="3"/>
-                            <path id="socGauge"
-                                d="M18 2.0845
-                                a 15.9155 15.9155 0 0 1 0 31.831
-                                a 15.9155 15.9155 0 0 1 0 -31.831"
-                                fill="none"
-                                stroke="#00ff88"
-                                stroke-width="3"
-                                stroke-dasharray="0 100"/>
+                            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="3"/>
+                            <path id="socGauge" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                fill="none" stroke="#00ff88" stroke-width="3" stroke-dasharray="0 100"/>
                         </svg>
                         <div class="gauge-value" id="socValue">--%</div>
                     </div>
@@ -656,17 +644,14 @@
                     <span class="metric-value" id="batteryMinSoc">-- %</span>
                 </div>
                 <div class="metric">
-                    <span class="metric-label">Días desde carga completa</span>
+                    <span class="metric-label">Días desde completa</span>
                     <span class="metric-value" id="daysSinceFull">--</span>
                 </div>
             </div>
 
-            <!-- Tarjeta Shunts -->
+            <!-- Shunts -->
             <div class="card">
-                <h2>
-                    <span class="card-icon">⚡</span>
-                    Shunts de Corriente
-                </h2>
+                <h2><span class="card-icon">⚡</span> Monitoreo de Corriente</h2>
                 <div class="metric">
                     <span class="metric-label">Shunt A</span>
                     <span class="metric-value" id="shuntACurrent">-- A</span>
@@ -676,25 +661,22 @@
                     <span class="metric-value" id="shuntBCurrent">-- A</span>
                 </div>
                 <div class="metric">
-                    <span class="metric-label">Energía Entrada Hoy</span>
+                    <span class="metric-label">Energía Entrada</span>
                     <span class="metric-value" id="energyInputToday">-- kWh</span>
                 </div>
                 <div class="metric">
-                    <span class="metric-label">Energía Salida Hoy</span>
+                    <span class="metric-label">Energía Salida</span>
                     <span class="metric-value" id="energyOutputBatteryToday">-- kWh</span>
                 </div>
                 <div class="metric">
-                    <span class="metric-label">Ah Salida Hoy</span>
+                    <span class="metric-label">Ah Consumidos</span>
                     <span class="metric-value" id="ahOutputToday">-- Ah</span>
                 </div>
             </div>
 
-            <!-- Tarjeta Sistema -->
+            <!-- Sistema -->
             <div class="card">
-                <h2>
-                    <span class="card-icon">📊</span>
-                    Sistema
-                </h2>
+                <h2><span class="card-icon">📊</span> Estado del Sistema</h2>
                 <div class="metric">
                     <span class="metric-label">Voltaje Sistema</span>
                     <span class="metric-value primary" id="sysVoltage">-- V</span>
@@ -713,395 +695,111 @@
                 </div>
                 <div class="metric">
                     <span class="metric-label">Fuente de Datos</span>
-                    <span class="metric-value" id="dataSource">MQTT HiveMQ</span>
+                    <span class="metric-value" id="dataSource">MQTT</span>
                 </div>
             </div>
         </div>
 
-        <!-- Sección de Gráficas -->
+        <!-- ===== GRÁFICAS ===== -->
         <div class="chart-container">
             <h2>📊 Gráficas del Sistema - <span id="chartTimeRange">Últimas 24 horas</span></h2>
             <div class="chart-selector">
-                <button class="chart-btn active" onclick="showChart('power')">⚡ Potencia Solar</button>
-                <button class="chart-btn" onclick="showChart('soc')">🔋 Estado de Carga</button>
-                <button class="chart-btn" onclick="showChart('voltage')">📊 Voltaje Sistema</button>
-                <button class="chart-btn" onclick="showChart('voltage_pv')">☀️ Voltaje PV</button>
-                <button class="chart-btn" onclick="showChart('current')">⚡ Corrientes</button>
-                <button class="chart-btn" onclick="showChart('shunts')">🔌 Shunts</button>
-                <button class="chart-btn" onclick="showChart('energy')">💡 Energía</button>
+                <button class="chart-btn active" onclick="ChartManager.showChart('power')">⚡ Potencia Solar</button>
+                <button class="chart-btn" onclick="ChartManager.showChart('soc')">🔋 Estado de Carga</button>
+                <button class="chart-btn" onclick="ChartManager.showChart('voltage')">📊 Voltajes Sistema</button>
+                <button class="chart-btn" onclick="ChartManager.showChart('voltage_pv')">☀️ Voltaje PV</button>
+                <button class="chart-btn" onclick="ChartManager.showChart('current')">⚡ Corrientes</button>
+                <button class="chart-btn" onclick="ChartManager.showChart('shunts')">🔌 Shunts</button>
+                <button class="chart-btn" onclick="ChartManager.showChart('energy')">💡 Energía</button>
             </div>
             <div class="chart-wrapper">
                 <canvas id="mainChart"></canvas>
             </div>
             <div class="data-info" id="chartInfo">
-                <span id="dataPointsInfo">Mostrando -- puntos de datos</span> | 
+                <span id="dataPointsInfo">Mostrando -- puntos</span> | 
                 <span id="avgInfo">--</span> |
                 <span id="maxInfo">--</span>
             </div>
         </div>
 
+        <!-- ===== INFO PANEL ===== -->
         <div class="info-panel">
-            <p>Sistema de monitoreo en tiempo real vía MQTT/HiveMQ (almacenamiento en navegador)</p>
-            <p>Desarrollado por: Andrés Santiago Gómez Blanco | Universidad de los Andes</p>
-            <p class="data-info">Datos almacenados localmente en el navegador con sincronización MQTT</p>
+            <p>🌱 Sistema de monitoreo solar en tiempo real vía MQTT</p>
+            <p>💻 Desarrollado por: Andrés Santiago Gómez Blanco | Universidad de los Andes</p>
+            <p>📊 Datos almacenados localmente con sincronización en la nube</p>
         </div>
     </div>
 
     <script>
-        // Variables globales MQTT y Sistema
-        let mqttClient = null;
-        let isConnected = false;
-        let mqttMessageCount = 0;
-        let lastConnectionStatus = null;
-        
-        // Variables del dashboard original
-        let mainChart = null;
-        let currentTimeRange = 24; // horas
-        let currentChartType = 'power';
-        let historyData = [];
-        let lastDataReceived = null;
-
-        // Configuración de colores para diferentes métricas (igual que el original)
-        const chartColors = {
-            power: '#ffd700',
-            soc: '#00ff88',
-            voltage_system: '#00aaff',
-            voltage_pv: '#ff8800',
-            voltage_battery: '#ff00aa',
-            current_pv: '#88ff00',
-            current_output: '#00ffaa',
-            shunt_a: '#ff4444',
-            shunt_b: '#44ff44',
-            energy_input: '#ffaa00',
-            energy_output: '#aa00ff'
+        // ===== CONFIGURACIÓN GLOBAL =====
+        const CONFIG = {
+            MQTT: {
+                HOST: '2a23f9476713427784953f7e7bf869e2.s1.eu.hivemq.cloud',
+                PORT: 8884,
+                USERNAME: 'kiosol',
+                PASSWORD: 'Proy&Kiosol888',
+                TOPIC_BASE: 'kiosol/mate3'
+            },
+            CHART: {
+                COLORS: {
+                    power: '#ffd700',
+                    soc: '#00ff88',
+                    voltage_system: '#00aaff',
+                    voltage_pv: '#ff8800',
+                    voltage_battery: '#ff00aa',
+                    current_pv: '#88ff00',
+                    current_output: '#00ffaa',
+                    shunt_a: '#ff4444',
+                    shunt_b: '#44ff44',
+                    energy_input: '#ffaa00',
+                    energy_output: '#aa00ff'
+                }
+            },
+            STORAGE: {
+                MAX_HISTORY: 1000,
+                KEYS: {
+                    HISTORY: 'mate3HistoryData',
+                    CONFIG: 'mate3MqttConfig'
+                }
+            }
         };
 
-        // Generar ID único para el cliente MQTT
-        function generateClientId() {
-            return 'mate3-dashboard-' + Math.random().toString(36).substr(2, 9);
-        }
-
-        // Inicializar al cargar la página
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 Inicializando MATE3 Dashboard con HiveMQ...');
-            
-            // Forzar configuración HiveMQ Cloud
-            document.getElementById('mqttHost').value = '2a23f9476713427784953f7e7bf869e2.s1.eu.hivemq.cloud';
-            document.getElementById('mqttPort').value = '8884';
-            document.getElementById('mqttTopic').value = 'kiosol/mate3';
-            document.getElementById('mqttUsername').value = 'kiosol';
-            document.getElementById('mqttPassword').value = 'Proy&Kiosol888';
-            document.getElementById('mqttClientId').value = generateClientId();
-            
-            console.log('⚙️ Configuración inicial forzada:', {
-                host: document.getElementById('mqttHost').value,
-                port: document.getElementById('mqttPort').value,
-                topic: document.getElementById('mqttTopic').value,
-                username: document.getElementById('mqttUsername').value
-            });
-            
-            // Inicializar gráfico
-            initChart();
-            
-            // Cargar configuración guardada (si existe)
-            loadSavedConfig();
-            
-            // Cargar datos del historial del navegador
-            loadHistoryFromStorage();
-            
-            console.log('✅ Dashboard inicializado - Listo para conectar a HiveMQ Cloud');
-        });
-
-        // Guardar configuración en localStorage
-        function saveConfig() {
-            const config = {
-                host: document.getElementById('mqttHost').value,
-                port: document.getElementById('mqttPort').value,
-                topic: document.getElementById('mqttTopic').value,
-                username: document.getElementById('mqttUsername').value,
-                // No guardamos la contraseña por seguridad
-                clientId: document.getElementById('mqttClientId').value
-            };
-            localStorage.setItem('mate3MqttConfig', JSON.stringify(config));
-        }
-
-        // Cargar configuración guardada
-        function loadSavedConfig() {
-            const saved = localStorage.getItem('mate3MqttConfig');
-            if (saved) {
-                try {
-                    const config = JSON.parse(saved);
-                    document.getElementById('mqttHost').value = config.host || '2a23f9476713427784953f7e7bf869e2.s1.eu.hivemq.cloud';
-                    document.getElementById('mqttPort').value = config.port || '8884';
-                    document.getElementById('mqttTopic').value = config.topic || 'kiosol/mate3';
-                    document.getElementById('mqttUsername').value = config.username || 'kiosol';
-                    document.getElementById('mqttClientId').value = config.clientId || generateClientId();
-                    // No cargamos la contraseña por seguridad, pero la ponemos por defecto
-                    if (!document.getElementById('mqttPassword').value) {
-                        document.getElementById('mqttPassword').value = 'Proy&Kiosol888';
-                    }
-                } catch (e) {
-                    console.log('Error cargando configuración guardada');
-                }
-            } else {
-                // Configuración por defecto para HiveMQ Cloud Kiosol (SOLO WSS)
-                document.getElementById('mqttHost').value = '2a23f9476713427784953f7e7bf869e2.s1.eu.hivemq.cloud';
-                document.getElementById('mqttPort').value = '8884'; // Por defecto WSS
-                document.getElementById('mqttTopic').value = 'kiosol/mate3';
-                document.getElementById('mqttUsername').value = 'kiosol';
-                document.getElementById('mqttPassword').value = 'Proy&Kiosol888';
+        // ===== ESTADO GLOBAL =====
+        const AppState = {
+            mqtt: {
+                client: null,
+                connected: false,
+                messageCount: 0
+            },
+            chart: {
+                instance: null,
+                currentType: 'power',
+                currentTimeRange: 24
+            },
+            data: {
+                history: [],
+                lastReceived: null
             }
-        }
+        };
 
-        // Conectar a MQTT (usando MQTT.js) - Configuración específica HiveMQ
-        function connectMQTT() {
-            const host = document.getElementById('mqttHost').value;
-            const port = parseInt(document.getElementById('mqttPort').value);
-            const topic = document.getElementById('mqttTopic').value;
-            const username = document.getElementById('mqttUsername').value;
-            const password = document.getElementById('mqttPassword').value;
-            const clientId = document.getElementById('mqttClientId').value;
-
-            if (!host || !port || !topic || !clientId) {
-                showError('Por favor complete la configuración MQTT');
-                return;
+        // ===== GESTIÓN DE MQTT =====
+        class MQTTManager {
+            static generateClientId() {
+                return 'mate3-dashboard-' + Math.random().toString(36).substr(2, 9);
             }
 
-            updateConnectionStatus('connecting', 'Conectando a MQTT...');
+            static connectHiveMQ() {
+                const url = `wss://${CONFIG.MQTT.HOST}:${CONFIG.MQTT.PORT}/mqtt`;
+                const clientId = this.generateClientId();
 
-            try {
-                // CONFIGURACIÓN ESPECÍFICA PARA HIVEMQ CLOUD
-                const protocol = 'wss'; // Siempre WSS para HTTPS
-                
-                // URL correcta según documentación HiveMQ
-                const url = `${protocol}://${host}:${port}/mqtt`;
+                console.log('🔗 Conectando a HiveMQ:', url);
 
-                console.log('🔒 Conectando a HiveMQ Cloud WSS:', url);
-                console.log('📋 Configuración:', {
-                    host: host,
-                    port: port,
-                    clientId: clientId,
-                    username: username ? 'configurado' : 'no configurado',
-                    topic: topic
-                });
-
-                // Opciones específicas para HiveMQ Cloud
-                const options = {
-                    clientId: clientId,
-                    username: username,
-                    password: password,
-                    clean: true,
-                    connectTimeout: 30000, // 30 segundos para HiveMQ Cloud
-                    keepalive: 60,
-                    reconnectPeriod: 0, // Sin reconexión automática
-                    protocolVersion: 4, // MQTT 3.1.1
-                    reschedulePings: true
-                };
-
-                // Agregar opciones TLS para HiveMQ Cloud
-                if (host.includes('hivemq.cloud')) {
-                    options.rejectUnauthorized = false; // Para HiveMQ Cloud
-                }
-
-                console.log('⚙️ Opciones de conexión:', options);
-
-                // Crear cliente MQTT
-                mqttClient = mqtt.connect(url, options);
-
-                // Configurar eventos con logs detallados
-                mqttClient.on('connect', (connack) => {
-                    console.log('✅ CONECTADO EXITOSAMENTE a HiveMQ Cloud!');
-                    console.log('📊 Detalles de conexión:', connack);
-                    onMQTTConnect(topic);
-                });
-
-                mqttClient.on('error', (error) => {
-                    console.error('❌ ERROR MQTT:', error);
-                    console.error('🔍 Tipo de error:', error.message);
-                    console.error('🔍 Stack:', error.stack);
-                    onMQTTConnectFailure(error);
-                });
-
-                mqttClient.on('close', () => {
-                    console.log('🔌 Conexión MQTT cerrada');
-                    onMQTTConnectionLost({ errorMessage: 'Conexión cerrada' });
-                });
-
-                mqttClient.on('offline', () => {
-                    console.log('📡 Cliente MQTT offline');
-                    updateConnectionStatus('disconnected', 'Cliente offline');
-                });
-
-                mqttClient.on('reconnect', () => {
-                    console.log('🔄 Intentando reconectar...');
-                    updateConnectionStatus('connecting', 'Reconectando...');
-                });
-
-                mqttClient.on('message', (topic, message, packet) => {
-                    console.log('📨 Mensaje recibido:', topic, message.toString());
-                    console.log('📦 Detalles del paquete:', packet);
-                    onMQTTMessageArrived({
-                        destinationName: topic,
-                        payloadString: message.toString()
-                    });
-                });
-
-            } catch (error) {
-                console.error('💥 EXCEPCIÓN al conectar MQTT:', error);
-                updateConnectionStatus('disconnected', 'Error de conexión MQTT: ' + error.message);
-                showError('Error: ' + error.message);
-            }
-        }
-
-        // Callback cuando se conecta exitosamente (adaptado para MQTT.js)
-        function onMQTTConnect(baseTopic) {
-            console.log('Conectado a MQTT exitosamente');
-            isConnected = true;
-            updateConnectionStatus('connected', 'Conectado a MQTT');
-            
-            // Suscribirse a todos los tópicos del MATE3
-            const topics = [
-                baseTopic + '/all',
-                baseTopic + '/system',
-                baseTopic + '/inverter', 
-                baseTopic + '/charge_controller',
-                baseTopic + '/battery'
-            ];
-
-            topics.forEach(topic => {
-                mqttClient.subscribe(topic, (err) => {
-                    if (!err) {
-                        console.log('✅ Suscrito a:', topic);
-                    } else {
-                        console.error('❌ Error suscribiendo a:', topic, err);
-                    }
-                });
-            });
-
-            // Actualizar UI
-            document.querySelector('[onclick="connectMQTT()"]').style.display = 'none';
-            document.getElementById('disconnectBtn').style.display = 'inline-block';
-            
-            // Guardar configuración
-            saveConfig();
-            
-            // Reiniciar contadores
-            mqttMessageCount = 0;
-            lastConnectionStatus = Date.now();
-        }
-
-        // Callback cuando falla la conexión (adaptado para MQTT.js)
-        function onMQTTConnectFailure(error) {
-            console.error('❌ Falló conexión MQTT:', error);
-            
-            let errorMsg = 'Error de conexión';
-            
-            if (error.message) {
-                errorMsg = error.message;
-            } else if (error.code) {
-                switch (error.code) {
-                    case 'ECONNREFUSED':
-                        errorMsg = 'Conexión rechazada - Verifica host/puerto';
-                        break;
-                    case 'ENOTFOUND':
-                        errorMsg = 'Host no encontrado - Verifica URL';
-                        break;
-                    case 'ECONNRESET':
-                        errorMsg = 'Conexión perdida - Verifica credenciales';
-                        break;
-                    default:
-                        errorMsg = `Error ${error.code}: ${error.message || 'Desconocido'}`;
-                }
-            }
-            
-            updateConnectionStatus('disconnected', errorMsg);
-            showError('❌ ' + errorMsg);
-        }
-
-        // Callback cuando se pierde la conexión
-        function onMQTTConnectionLost(responseObject) {
-            if (responseObject.errorCode !== 0) {
-                console.log('Conexión MQTT perdida:', responseObject.errorMessage);
-                isConnected = false;
-                updateConnectionStatus('disconnected', 'Conexión perdida: ' + responseObject.errorMessage);
-                resetMQTTInterface();
-            }
-        }
-
-        // Callback cuando llega un mensaje MQTT
-        function onMQTTMessageArrived(message) {
-            console.log('Mensaje MQTT recibido en', message.destinationName, ':', message.payloadString);
-            
-            mqttMessageCount++;
-            document.getElementById('mqttMessages').textContent = mqttMessageCount;
-            
-            try {
-                const data = JSON.parse(message.payloadString);
-                
-                // Actualizar debug panel
-                document.getElementById('debugData').textContent = JSON.stringify(data, null, 2);
-                
-                // Determinar el tipo de mensaje y procesar
-                if (message.destinationName.endsWith('/all')) {
-                    // Mensaje completo del sistema
-                    updateUI(data);
-                } else {
-                    // Mensajes individuales por componente
-                    updatePartialUI(message.destinationName, data);
-                }
-                
-                lastConnectionStatus = Date.now();
-                document.getElementById('lastUpdate').textContent = 
-                    `Última actualización: ${new Date().toLocaleTimeString('es-CO')}`;
-                
-            } catch (error) {
-                console.error('Error procesando mensaje MQTT:', error);
-                showError('Error procesando datos: ' + error.message);
-            }
-        }
-
-        // Desconectar MQTT (adaptado para MQTT.js)
-        function disconnectMQTT() {
-            if (mqttClient && isConnected) {
-                mqttClient.end();
-            }
-            resetMQTTInterface();
-            updateConnectionStatus('disconnected', 'Desconectado manualmente');
-        }
-
-        // Alternar panel de configuración
-        function toggleConfigPanel() {
-            const panel = document.querySelector('.mqtt-config-panel');
-            const isHidden = panel.style.display === 'none';
-            panel.style.display = isHidden ? 'block' : 'none';
-        }
-
-        // Resetear interfaz MQTT
-        function resetMQTTInterface() {
-            isConnected = false;
-            document.querySelector('[onclick="connectHiveMQDirect()"]').style.display = 'inline-block';
-            document.querySelector('[onclick="connectMQTT()"]').style.display = 'inline-block';
-            document.getElementById('disconnectBtn').style.display = 'none';
-        }
-
-        // Conexión directa a HiveMQ Cloud con configuración hardcodeada
-        function connectHiveMQDirect() {
-            console.log('🎯 CONEXIÓN DIRECTA A HIVEMQ CLOUD');
-            
-            updateConnectionStatus('connecting', 'Conectando directamente a HiveMQ Cloud...');
-
-            try {
-                // CONFIGURACIÓN HARDCODEADA HIVEMQ CLOUD
-                const url = 'wss://2a23f9476713427784953f7e7bf869e2.s1.eu.hivemq.cloud:8884/mqtt';
-                const clientId = 'mate3-dashboard-' + Math.random().toString(36).substr(2, 9);
-                
-                console.log('🔗 URL exacta:', url);
-                console.log('🆔 Cliente ID:', clientId);
+                UIManager.updateConnectionStatus('connecting', 'Conectando a HiveMQ...');
 
                 const options = {
                     clientId: clientId,
-                    username: 'kiosol',
-                    password: 'Proy&Kiosol888',
+                    username: CONFIG.MQTT.USERNAME,
+                    password: CONFIG.MQTT.PASSWORD,
                     clean: true,
                     connectTimeout: 30000,
                     keepalive: 60,
@@ -1109,126 +807,269 @@
                     protocolVersion: 4
                 };
 
-                console.log('⚙️ Opciones:', options);
+                AppState.mqtt.client = mqtt.connect(url, options);
+                this.setupEventHandlers();
+            }
 
-                // Crear cliente MQTT
-                mqttClient = mqtt.connect(url, options);
+            static setupEventHandlers() {
+                const client = AppState.mqtt.client;
 
-                // Configurar eventos
-                mqttClient.on('connect', (connack) => {
-                    console.log('🎉 ¡CONECTADO A HIVEMQ CLOUD!');
-                    console.log('📊 Información de conexión:', connack);
+                client.on('connect', (connack) => {
+                    console.log('✅ Conectado a HiveMQ Cloud!');
+                    AppState.mqtt.connected = true;
+                    AppState.mqtt.messageCount = 0;
                     
-                    isConnected = true;
-                    updateConnectionStatus('connected', '✅ Conectado a HiveMQ Cloud');
+                    UIManager.updateConnectionStatus('connected', '✅ Conectado a HiveMQ');
+                    UIManager.showAlert('🎉 Conectado exitosamente a HiveMQ Cloud!', 'success');
                     
                     // Suscribirse a tópicos
-                    const topics = [
-                        'kiosol/mate3/all',
-                        'kiosol/mate3/system',
-                        'kiosol/mate3/inverter',
-                        'kiosol/mate3/charge_controller',
-                        'kiosol/mate3/battery'
-                    ];
-
-                    topics.forEach(topic => {
-                        mqttClient.subscribe(topic, (err) => {
-                            if (!err) {
-                                console.log('✅ Suscrito a:', topic);
-                            } else {
-                                console.error('❌ Error suscribiendo a:', topic, err);
-                            }
-                        });
-                    });
-
+                    this.subscribeToTopics();
+                    
                     // Actualizar UI
-                    document.querySelector('[onclick="connectHiveMQDirect()"]').style.display = 'none';
-                    document.querySelector('[onclick="connectMQTT()"]').style.display = 'none';
                     document.getElementById('disconnectBtn').style.display = 'inline-block';
-                    
-                    // Reiniciar contadores
-                    mqttMessageCount = 0;
-                    lastConnectionStatus = Date.now();
-                    
-                    showError('🎉 ¡Conectado exitosamente a HiveMQ Cloud!');
+                    document.querySelector('[onclick="MQTTManager.connectHiveMQ()"]').style.display = 'none';
                 });
 
-                mqttClient.on('error', (error) => {
-                    console.error('❌ ERROR HIVEMQ:', error);
-                    console.error('🔍 Mensaje:', error.message);
-                    console.error('🔍 Stack:', error.stack);
-                    
-                    updateConnectionStatus('disconnected', 'Error: ' + error.message);
-                    showError('❌ Error HiveMQ: ' + error.message);
+                client.on('error', (error) => {
+                    console.error('❌ Error MQTT:', error);
+                    UIManager.updateConnectionStatus('disconnected', 'Error: ' + error.message);
+                    UIManager.showAlert('Error de conexión: ' + error.message, 'error');
                 });
 
-                mqttClient.on('close', () => {
-                    console.log('🔌 Conexión HiveMQ cerrada');
-                    isConnected = false;
-                    updateConnectionStatus('disconnected', 'Conexión cerrada');
-                    resetMQTTInterface();
+                client.on('close', () => {
+                    console.log('🔌 Conexión cerrada');
+                    this.handleDisconnection();
                 });
 
-                mqttClient.on('message', (topic, message, packet) => {
-                    console.log('📨 MENSAJE DE HIVEMQ:', topic, message.toString());
-                    mqttMessageCount++;
-                    document.getElementById('mqttMessages').textContent = mqttMessageCount;
-                    
-                    onMQTTMessageArrived({
-                        destinationName: topic,
-                        payloadString: message.toString()
+                client.on('message', (topic, message) => {
+                    this.handleMessage(topic, message);
+                });
+            }
+
+            static subscribeToTopics() {
+                const topics = [
+                    `${CONFIG.MQTT.TOPIC_BASE}/all`,
+                    `${CONFIG.MQTT.TOPIC_BASE}/system`,
+                    `${CONFIG.MQTT.TOPIC_BASE}/inverter`,
+                    `${CONFIG.MQTT.TOPIC_BASE}/charge_controller`,
+                    `${CONFIG.MQTT.TOPIC_BASE}/battery`
+                ];
+
+                topics.forEach(topic => {
+                    AppState.mqtt.client.subscribe(topic, (err) => {
+                        if (!err) {
+                            console.log('✅ Suscrito a:', topic);
+                        } else {
+                            console.error('❌ Error suscribiendo:', topic, err);
+                        }
                     });
                 });
+            }
 
-            } catch (error) {
-                console.error('💥 EXCEPCIÓN HIVEMQ:', error);
-                updateConnectionStatus('disconnected', 'Error: ' + error.message);
-                showError('Error: ' + error.message);
+            static handleMessage(topic, message) {
+                try {
+                    AppState.mqtt.messageCount++;
+                    document.getElementById('mqttMessages').textContent = AppState.mqtt.messageCount;
+                    
+                    const data = JSON.parse(message.toString());
+                    console.log('📨 Mensaje recibido:', topic, data);
+                    
+                    // Actualizar debug panel
+                    document.getElementById('debugData').textContent = JSON.stringify(data, null, 2);
+                    
+                    // Procesar datos según el tópico
+                    if (topic.endsWith('/all')) {
+                        DataManager.processCompleteData(data);
+                    } else {
+                        DataManager.processPartialData(topic, data);
+                    }
+                    
+                    // Actualizar timestamp
+                    document.getElementById('lastUpdate').textContent = 
+                        `Última actualización: ${new Date().toLocaleTimeString('es-CO')}`;
+                        
+                } catch (error) {
+                    console.error('Error procesando mensaje:', error);
+                    UIManager.showAlert('Error procesando datos: ' + error.message, 'error');
+                }
+            }
+
+            static disconnect() {
+                if (AppState.mqtt.client && AppState.mqtt.connected) {
+                    AppState.mqtt.client.end();
+                }
+                this.handleDisconnection();
+            }
+
+            static handleDisconnection() {
+                AppState.mqtt.connected = false;
+                UIManager.updateConnectionStatus('disconnected', 'Desconectado');
+                
+                // Resetear UI
+                document.getElementById('disconnectBtn').style.display = 'none';
+                document.querySelector('[onclick="MQTTManager.connectHiveMQ()"]').style.display = 'inline-block';
             }
         }
 
-        // Test con broker público
-        function testPublicBroker() {
-            // Configurar broker público WSS para HTTPS
-            document.getElementById('mqttHost').value = 'test.mosquitto.org';
-            document.getElementById('mqttPort').value = '8081'; // Puerto WSS público
-            document.getElementById('mqttUsername').value = '';
-            document.getElementById('mqttPassword').value = '';
-            document.getElementById('mqttTopic').value = 'test/mate3';
-            
-            showError('🧪 Configurado broker público WSS de prueba. Haz clic en Conectar.');
-        }
+        // ===== GESTIÓN DE DATOS =====
+        class DataManager {
+            static processCompleteData(data) {
+                console.log('Procesando datos completos:', data);
+                
+                // Actualizar UI
+                UIUpdater.updateAllMetrics(data);
+                
+                // Agregar al historial
+                this.addToHistory(data);
+                
+                // Actualizar gráfica
+                if (AppState.chart.instance) {
+                    ChartManager.updateChart();
+                }
+                
+                // Guardar último dato recibido
+                AppState.data.lastReceived = data;
+            }
 
-        // Actualizar estado de conexión (igual que el original)
-        function updateConnectionStatus(status, message) {
-            const statusDot = document.getElementById('connectionStatus');
-            const statusText = document.getElementById('connectionText');
-            const overlay = document.getElementById('disconnectedOverlay');
-            
-            statusDot.className = 'status-dot ' + status;
-            statusText.textContent = message;
-            
-            if (status === 'connected') {
-                overlay.style.display = 'none';
-            } else if (status === 'disconnected') {
-                overlay.style.display = 'block';
+            static processPartialData(topic, data) {
+                console.log('Procesando datos parciales:', topic, data);
+                
+                // Construir datos completos a partir de fragmentos
+                let fullData = AppState.data.lastReceived || {};
+                
+                if (topic.endsWith('/system')) {
+                    fullData.system = data;
+                } else if (topic.endsWith('/inverter')) {
+                    fullData.inverter = data;
+                } else if (topic.endsWith('/charge_controller')) {
+                    fullData.charge_controller = data;
+                } else if (topic.endsWith('/battery')) {
+                    fullData.battery = data;
+                }
+                
+                AppState.data.lastReceived = fullData;
+                this.processCompleteData(fullData);
+            }
+
+            static addToHistory(data) {
+                const pvVoltage = parseFloat(data.charge_controller?.input_voltage) || 0;
+                const pvCurrent = parseFloat(data.charge_controller?.input_current) || 0;
+                const power = pvVoltage * pvCurrent;
+                
+                // Solo agregar si hay datos válidos
+                const hasValidData = data.system?.battery_voltage && 
+                                    data.battery?.soc && 
+                                    (pvVoltage > 0 || pvCurrent > 0);
+                
+                if (hasValidData) {
+                    const historyEntry = {
+                        timestamp: new Date().toISOString(),
+                        power: power,
+                        soc: data.battery?.soc || 0,
+                        voltage_system: parseFloat(data.system?.battery_voltage) || 0,
+                        voltage_pv: pvVoltage,
+                        voltage_battery: parseFloat(data.battery?.voltage) || 0,
+                        current_pv: pvCurrent,
+                        current_output: parseFloat(data.charge_controller?.output_current) || 0,
+                        shunt_a: parseFloat(data.battery?.shunt_a_current) || 0,
+                        shunt_b: parseFloat(data.battery?.shunt_b_current) || 0,
+                        energy_input: parseFloat(data.battery?.input_kwh_today) || 0,
+                        energy_output: parseFloat(data.battery?.output_kwh_today) || 0
+                    };
+
+                    AppState.data.history.push(historyEntry);
+
+                    // Mantener límite de registros
+                    if (AppState.data.history.length > CONFIG.STORAGE.MAX_HISTORY) {
+                        AppState.data.history = AppState.data.history.slice(-CONFIG.STORAGE.MAX_HISTORY);
+                    }
+                    
+                    // Guardar en localStorage
+                    this.saveToStorage();
+                    
+                    console.log('✅ Datos agregados al historial:', power.toFixed(1) + 'W');
+                }
+            }
+
+            static saveToStorage() {
+                try {
+                    localStorage.setItem(CONFIG.STORAGE.KEYS.HISTORY, JSON.stringify(AppState.data.history));
+                } catch (e) {
+                    console.warn('No se pudo guardar en localStorage');
+                }
+            }
+
+            static loadFromStorage() {
+                try {
+                    const saved = localStorage.getItem(CONFIG.STORAGE.KEYS.HISTORY);
+                    if (saved) {
+                        AppState.data.history = JSON.parse(saved);
+                        console.log(`📚 Historial cargado: ${AppState.data.history.length} registros`);
+                    }
+                } catch (e) {
+                    console.warn('Error cargando historial');
+                    AppState.data.history = [];
+                }
+            }
+
+            static clearHistory() {
+                AppState.data.history = [];
+                localStorage.removeItem(CONFIG.STORAGE.KEYS.HISTORY);
+                
+                if (AppState.chart.instance) {
+                    AppState.chart.instance.data.labels = [];
+                    AppState.chart.instance.data.datasets = [];
+                    AppState.chart.instance.update();
+                }
+                
+                UIManager.showAlert('🗑️ Historial limpiado', 'success');
+            }
+
+            static downloadCSV() {
+                if (!AppState.data.history.length) {
+                    UIManager.showAlert('No hay datos para descargar', 'warning');
+                    return;
+                }
+
+                let csv = 'Timestamp,Hora,Potencia(W),SoC(%),V_Sistema(V),V_PV(V),I_PV(A),V_Bateria(V),Shunt_A(A),Shunt_B(A),E_Entrada(kWh),E_Salida(kWh)\n';
+                
+                AppState.data.history.forEach(item => {
+                    const date = new Date(item.timestamp);
+                    csv += `${item.timestamp},${date.toLocaleString('es-CO')},${item.power.toFixed(2)},${item.soc},${item.voltage_system},${item.voltage_pv},${item.current_pv},${item.voltage_battery},${item.shunt_a},${item.shunt_b},${item.energy_input},${item.energy_output}\n`;
+                });
+
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `mate3_data_${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+                
+                UIManager.showAlert('📥 Archivo CSV descargado', 'success');
             }
         }
 
-        // Actualizar UI con datos completos (adaptado del original)
-        function updateUI(data) {
-            console.log('Actualizando UI con datos completos:', data);
+        // ===== ACTUALIZACIÓN DE UI =====
+        class UIUpdater {
+            static updateAllMetrics(data) {
+                this.updateInverter(data.inverter);
+                this.updateChargeController(data.charge_controller);
+                this.updateBattery(data.battery);
+                this.updateSystem(data.system);
+            }
 
-            // Actualizar inversor
-            if (data.inverter) {
-                document.getElementById('inverterMode').textContent = data.inverter.mode || '--';
-                document.getElementById('acOutput').textContent = data.inverter.ac_output ? `${data.inverter.ac_output} V` : '-- V';
-                document.getElementById('invBatteryVoltage').textContent = data.inverter.battery_voltage ? `${data.inverter.battery_voltage} V` : '-- V';
-                document.getElementById('acMode').textContent = data.inverter.ac_mode || '--';
+            static updateInverter(inverter) {
+                if (!inverter) return;
+
+                document.getElementById('inverterMode').textContent = inverter.mode || '--';
+                document.getElementById('acOutput').textContent = inverter.ac_output ? `${inverter.ac_output} V` : '-- V';
+                document.getElementById('invBatteryVoltage').textContent = inverter.battery_voltage ? `${inverter.battery_voltage} V` : '-- V';
+                document.getElementById('acMode').textContent = inverter.ac_mode || '--';
                 
                 // Estado del inversor
-                const warnings = data.inverter.warnings || ['none'];
-                const errors = data.inverter.errors || ['none'];
+                const warnings = inverter.warnings || ['none'];
+                const errors = inverter.errors || ['none'];
                 let status = 'Normal';
                 let statusClass = '';
                 
@@ -1245,527 +1086,430 @@
                 statusEl.className = 'metric-value ' + statusClass;
             }
 
-            // Actualizar controlador de carga
-            if (data.charge_controller) {
-                document.getElementById('ccMode').textContent = data.charge_controller.mode ? data.charge_controller.mode.trim() : '--';
-                
-                const pvVoltage = parseFloat(data.charge_controller.input_voltage) || 0;
-                const pvCurrent = parseFloat(data.charge_controller.input_current) || 0;
-                const outputCurrent = parseFloat(data.charge_controller.output_current) || 0;
-                const outputKwh = parseFloat(data.charge_controller.output_kwh) || 0;
-                
+            static updateChargeController(cc) {
+                if (!cc) return;
+
+                const pvVoltage = parseFloat(cc.input_voltage) || 0;
+                const pvCurrent = parseFloat(cc.input_current) || 0;
+                const outputCurrent = parseFloat(cc.output_current) || 0;
+                const outputKwh = parseFloat(cc.output_kwh) || 0;
+                const power = pvVoltage * pvCurrent;
+
+                document.getElementById('ccMode').textContent = cc.mode ? cc.mode.trim() : '--';
                 document.getElementById('pvVoltage').textContent = `${pvVoltage.toFixed(1)} V`;
                 document.getElementById('pvCurrent').textContent = `${pvCurrent.toFixed(1)} A`;
+                document.getElementById('pvPower').textContent = `${power.toFixed(1)} W`;
                 document.getElementById('ccOutputCurrent').textContent = `${outputCurrent.toFixed(1)} A`;
                 document.getElementById('energyOutputToday').textContent = `${outputKwh.toFixed(2)} kWh`;
-                
-                // Calcular potencia solar
-                const power = pvVoltage * pvCurrent;
-                document.getElementById('pvPower').textContent = `${power.toFixed(1)} W`;
             }
 
-            // Actualizar batería
-            if (data.battery) {
-                const soc = data.battery.soc || 0;
-                const minSoc = data.battery.min_soc || 0;
-                const batteryVoltage = parseFloat(data.battery.voltage) || 0;
-                const batteryTemp = data.battery.temperature ? data.battery.temperature.toString().replace(' C', '') : '--';
-                const daysSinceFull = data.battery.days_since_full || 0;
-                
+            static updateBattery(battery) {
+                if (!battery) return;
+
+                const soc = battery.soc || 0;
+                const voltage = parseFloat(battery.voltage) || 0;
+                const temp = battery.temperature ? battery.temperature.toString().replace(' C', '') : '--';
+                const minSoc = battery.min_soc || 0;
+                const daysSinceFull = battery.days_since_full || 0;
+
+                // Actualizar gauge
                 document.getElementById('socValue').textContent = `${soc}%`;
                 document.getElementById('socGauge').style.strokeDasharray = `${soc} 100`;
-                document.getElementById('batteryVoltage').textContent = `${batteryVoltage.toFixed(1)} V`;
-                document.getElementById('batteryTemp').textContent = `${batteryTemp} °C`;
-                document.getElementById('batteryMinSoc').textContent = `${minSoc}%`;
-                document.getElementById('daysSinceFull').textContent = `${daysSinceFull.toFixed(1)}`;
                 
                 // Color del gauge según SoC
                 let gaugeColor = '#00ff88';
-                if (soc < 20) {
-                    gaugeColor = '#ff4444';
-                } else if (soc < 50) {
-                    gaugeColor = '#ffd700';
-                }
+                if (soc < 20) gaugeColor = '#ff4444';
+                else if (soc < 50) gaugeColor = '#ffd700';
                 document.getElementById('socGauge').style.stroke = gaugeColor;
 
-                // Actualizar shunts
-                const shuntA = parseFloat(data.battery.shunt_a_current) || 0;
-                const shuntB = parseFloat(data.battery.shunt_b_current) || 0;
-                const inputKwhToday = parseFloat(data.battery.input_kwh_today) || 0;
-                const outputKwhToday = parseFloat(data.battery.output_kwh_today) || 0;
-                
+                // Otras métricas
+                document.getElementById('batteryVoltage').textContent = `${voltage.toFixed(1)} V`;
+                document.getElementById('batteryTemp').textContent = `${temp} °C`;
+                document.getElementById('batteryMinSoc').textContent = `${minSoc}%`;
+                document.getElementById('daysSinceFull').textContent = `${daysSinceFull.toFixed(1)}`;
+
+                // Shunts
+                const shuntA = parseFloat(battery.shunt_a_current) || 0;
+                const shuntB = parseFloat(battery.shunt_b_current) || 0;
+                const inputKwh = parseFloat(battery.input_kwh_today) || 0;
+                const outputKwh = parseFloat(battery.output_kwh_today) || 0;
+
                 document.getElementById('shuntACurrent').textContent = `${shuntA.toFixed(1)} A`;
                 document.getElementById('shuntBCurrent').textContent = `${shuntB.toFixed(1)} A`;
-                document.getElementById('energyInputToday').textContent = `${inputKwhToday.toFixed(2)} kWh`;
-                document.getElementById('energyOutputBatteryToday').textContent = `${outputKwhToday.toFixed(2)} kWh`;
+                document.getElementById('energyInputToday').textContent = `${inputKwh.toFixed(2)} kWh`;
+                document.getElementById('energyOutputBatteryToday').textContent = `${outputKwh.toFixed(2)} kWh`;
                 
                 const ahOutput = Math.abs(shuntA) * 24;
                 document.getElementById('ahOutputToday').textContent = `${ahOutput.toFixed(1)} Ah`;
             }
 
-            // Actualizar sistema
-            if (data.system) {
-                const sysVoltage = parseFloat(data.system.battery_voltage) || 0;
-                const sysTime = formatSystemTime(data.system.time);
+            static updateSystem(system) {
+                if (!system) return;
+
+                const voltage = parseFloat(system.battery_voltage) || 0;
+                const time = this.formatSystemTime(system.time);
+
+                document.getElementById('sysVoltage').textContent = `${voltage.toFixed(1)} V`;
+                document.getElementById('sysTime').textContent = time;
+                document.getElementById('systemStatus').textContent = 'Online';
+            }
+
+            static formatSystemTime(timestamp) {
+                if (!timestamp) return '--:--:--';
                 
-                document.getElementById('sysVoltage').textContent = `${sysVoltage.toFixed(1)} V`;
-                document.getElementById('sysTime').textContent = sysTime;
-                document.getElementById('systemStatus').textContent = 'Conectado MQTT';
-            }
-
-            // Agregar a historial para gráficas
-            addToHistory(data);
-            
-            // Actualizar gráfica actual
-            if (mainChart && currentChartType) {
-                updateChart(currentChartType);
+                try {
+                    if (typeof timestamp === 'number') {
+                        const date = new Date(timestamp * 1000);
+                        return date.toLocaleTimeString('es-CO');
+                    }
+                    return timestamp.toString();
+                } catch (e) {
+                    return '--:--:--';
+                }
             }
         }
 
-        // Actualizar UI con datos parciales
-        function updatePartialUI(topic, data) {
-            console.log('Actualizando UI parcial:', topic, data);
-            
-            // Construir objeto completo a partir de datos parciales
-            let fullData = lastDataReceived || {};
-            
-            if (topic.endsWith('/system')) {
-                fullData.system = data;
-            } else if (topic.endsWith('/inverter')) {
-                fullData.inverter = data;
-            } else if (topic.endsWith('/charge_controller')) {
-                fullData.charge_controller = data;
-            } else if (topic.endsWith('/battery')) {
-                fullData.battery = data;
+        // ===== GESTIÓN DE GRÁFICAS =====
+        class ChartManager {
+            static init() {
+                const ctx = document.getElementById('mainChart').getContext('2d');
+                AppState.chart.instance = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels: [], datasets: [] },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { labels: { color: '#fff' } }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { color: '#aaa', maxTicksLimit: 12 },
+                                grid: { color: 'rgba(255,255,255,0.1)' }
+                            },
+                            y: {
+                                ticks: { color: '#aaa' },
+                                grid: { color: 'rgba(255,255,255,0.1)' }
+                            }
+                        },
+                        interaction: {
+                            intersect: false,
+                            mode: 'index'
+                        }
+                    }
+                });
             }
-            
-            lastDataReceived = fullData;
-            updateUI(fullData);
-        }
 
-        // Agregar datos al historial
-        function addToHistory(data) {
-            const now = new Date().toISOString();
-            const pvVoltage = parseFloat(data.charge_controller?.input_voltage) || 0;
-            const pvCurrent = parseFloat(data.charge_controller?.input_current) || 0;
-            const power = pvVoltage * pvCurrent;
-            
-            // Solo agregar si hay datos válidos
-            const hasValidData = data.system?.battery_voltage && 
-                                data.battery?.soc && 
-                                (pvVoltage > 0 || pvCurrent > 0);
-            
-            if (hasValidData) {
-                const historyEntry = {
-                    timestamp: now,
-                    power: power,
-                    soc: data.battery?.soc || 0,
-                    voltage_system: parseFloat(data.system?.battery_voltage) || 0,
-                    voltage_pv: pvVoltage,
-                    voltage_battery: parseFloat(data.battery?.voltage) || 0,
-                    current_pv: pvCurrent,
-                    current_output: parseFloat(data.charge_controller?.output_current) || 0,
-                    shunt_a: parseFloat(data.battery?.shunt_a_current) || 0,
-                    shunt_b: parseFloat(data.battery?.shunt_b_current) || 0,
-                    energy_input: parseFloat(data.battery?.input_kwh_today) || 0,
-                    energy_output: parseFloat(data.battery?.output_kwh_today) || 0
+            static changeTimeRange(hours) {
+                AppState.chart.currentTimeRange = hours;
+                
+                // Actualizar botones
+                document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
+                document.querySelector(`[data-hours="${hours}"]`).classList.add('active');
+                
+                // Actualizar título
+                const rangeText = hours === 1 ? 'Última hora' : `Últimas ${hours} horas`;
+                document.getElementById('chartTimeRange').textContent = rangeText;
+                
+                // Actualizar gráfica
+                this.updateChart();
+            }
+
+            static showChart(type) {
+                AppState.chart.currentType = type;
+                
+                // Actualizar botones
+                document.querySelectorAll('.chart-btn').forEach(btn => btn.classList.remove('active'));
+                event.target.classList.add('active');
+                
+                this.updateChart();
+            }
+
+            static updateChart() {
+                const chart = AppState.chart.instance;
+                const history = AppState.data.history;
+                
+                if (!chart || !history.length) return;
+
+                // Filtrar por rango de tiempo
+                const now = new Date();
+                const timeLimit = new Date(now.getTime() - (AppState.chart.currentTimeRange * 60 * 60 * 1000));
+                
+                const filteredData = history.filter(item => 
+                    new Date(item.timestamp) >= timeLimit
+                );
+
+                if (!filteredData.length) return;
+
+                // Preparar labels
+                const labels = filteredData.map(item => 
+                    this.formatTime(new Date(item.timestamp))
+                );
+
+                // Configurar datasets según tipo
+                const { datasets, yAxisLabel } = this.getChartConfig(filteredData);
+
+                // Actualizar gráfica
+                chart.data.labels = labels;
+                chart.data.datasets = datasets;
+                chart.options.scales.y.title = {
+                    display: true,
+                    text: yAxisLabel,
+                    color: '#fff'
                 };
+                chart.update('none');
 
-                historyData.push(historyEntry);
+                // Actualizar info
+                this.updateChartInfo(filteredData);
+            }
 
-                // Mantener solo los últimos 1000 puntos
-                if (historyData.length > 1000) {
-                    historyData = historyData.slice(-1000);
+            static getChartConfig(data) {
+                const type = AppState.chart.currentType;
+                const colors = CONFIG.CHART.COLORS;
+
+                switch (type) {
+                    case 'power':
+                        return {
+                            datasets: [{
+                                label: 'Potencia Solar (W)',
+                                data: data.map(item => item.power),
+                                borderColor: colors.power,
+                                backgroundColor: colors.power + '20',
+                                fill: true,
+                                tension: 0.4
+                            }],
+                            yAxisLabel: 'Potencia (W)'
+                        };
+
+                    case 'soc':
+                        return {
+                            datasets: [{
+                                label: 'Estado de Carga (%)',
+                                data: data.map(item => item.soc),
+                                borderColor: colors.soc,
+                                backgroundColor: colors.soc + '20',
+                                fill: true,
+                                tension: 0.4
+                            }],
+                            yAxisLabel: 'Estado de Carga (%)'
+                        };
+
+                    case 'voltage':
+                        return {
+                            datasets: [
+                                {
+                                    label: 'Voltaje Sistema (V)',
+                                    data: data.map(item => item.voltage_system),
+                                    borderColor: colors.voltage_system,
+                                    tension: 0.4
+                                },
+                                {
+                                    label: 'Voltaje Batería (V)',
+                                    data: data.map(item => item.voltage_battery),
+                                    borderColor: colors.voltage_battery,
+                                    tension: 0.4
+                                }
+                            ],
+                            yAxisLabel: 'Voltaje (V)'
+                        };
+
+                    case 'voltage_pv':
+                        return {
+                            datasets: [{
+                                label: 'Voltaje PV (V)',
+                                data: data.map(item => item.voltage_pv),
+                                borderColor: colors.voltage_pv,
+                                backgroundColor: colors.voltage_pv + '20',
+                                fill: true,
+                                tension: 0.4
+                            }],
+                            yAxisLabel: 'Voltaje PV (V)'
+                        };
+
+                    case 'current':
+                        return {
+                            datasets: [
+                                {
+                                    label: 'Corriente PV (A)',
+                                    data: data.map(item => item.current_pv),
+                                    borderColor: colors.current_pv,
+                                    tension: 0.4
+                                },
+                                {
+                                    label: 'Corriente Salida (A)',
+                                    data: data.map(item => item.current_output),
+                                    borderColor: colors.current_output,
+                                    tension: 0.4
+                                }
+                            ],
+                            yAxisLabel: 'Corriente (A)'
+                        };
+
+                    case 'shunts':
+                        return {
+                            datasets: [
+                                {
+                                    label: 'Shunt A (A)',
+                                    data: data.map(item => item.shunt_a),
+                                    borderColor: colors.shunt_a,
+                                    tension: 0.4
+                                },
+                                {
+                                    label: 'Shunt B (A)',
+                                    data: data.map(item => item.shunt_b),
+                                    borderColor: colors.shunt_b,
+                                    tension: 0.4
+                                }
+                            ],
+                            yAxisLabel: 'Corriente (A)'
+                        };
+
+                    case 'energy':
+                        return {
+                            datasets: [
+                                {
+                                    label: 'Energía Entrada (kWh)',
+                                    data: data.map(item => item.energy_input),
+                                    borderColor: colors.energy_input,
+                                    tension: 0.4
+                                },
+                                {
+                                    label: 'Energía Salida (kWh)',
+                                    data: data.map(item => item.energy_output),
+                                    borderColor: colors.energy_output,
+                                    tension: 0.4
+                                }
+                            ],
+                            yAxisLabel: 'Energía (kWh)'
+                        };
+
+                    default:
+                        return { datasets: [], yAxisLabel: '' };
+                }
+            }
+
+            static formatTime(date) {
+                const hours = date.getHours().toString().padStart(2, '0');
+                const minutes = date.getMinutes().toString().padStart(2, '0');
+                
+                if (AppState.chart.currentTimeRange > 24) {
+                    const day = date.getDate().toString().padStart(2, '0');
+                    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                    return `${day}/${month} ${hours}:${minutes}`;
                 }
                 
-                // Guardar en localStorage
-                saveHistoryToStorage();
+                return `${hours}:${minutes}`;
+            }
+
+            static updateChartInfo(data) {
+                if (!data.length) return;
+
+                const type = AppState.chart.currentType;
+                let values = [];
+                let unit = '';
+
+                switch (type) {
+                    case 'power':
+                        values = data.map(item => item.power);
+                        unit = 'W';
+                        break;
+                    case 'soc':
+                        values = data.map(item => item.soc);
+                        unit = '%';
+                        break;
+                    case 'voltage':
+                    case 'voltage_pv':
+                        values = data.map(item => item.voltage_system);
+                        unit = 'V';
+                        break;
+                    case 'current':
+                        values = data.map(item => item.current_pv);
+                        unit = 'A';
+                        break;
+                    case 'shunts':
+                        values = data.map(item => Math.abs(item.shunt_a));
+                        unit = 'A';
+                        break;
+                    case 'energy':
+                        values = data.map(item => item.energy_input);
+                        unit = 'kWh';
+                        break;
+                }
+
+                const avg = values.reduce((a, b) => a + b, 0) / values.length;
+                const max = Math.max(...values);
+
+                document.getElementById('dataPointsInfo').textContent = `Mostrando ${data.length} puntos`;
+                document.getElementById('avgInfo').textContent = `Promedio: ${avg.toFixed(2)} ${unit}`;
+                document.getElementById('maxInfo').textContent = `Máximo: ${max.toFixed(2)} ${unit}`;
+            }
+        }
+
+        // ===== GESTIÓN DE UI =====
+        class UIManager {
+            static togglePanel(panelId) {
+                const panel = document.getElementById(panelId);
+                const isVisible = panel.classList.contains('show');
                 
-                console.log('Datos agregados al historial:', power + 'W');
-            }
-        }
-
-        // Guardar historial en localStorage
-        function saveHistoryToStorage() {
-            try {
-                localStorage.setItem('mate3HistoryData', JSON.stringify(historyData));
-            } catch (e) {
-                console.warn('No se pudo guardar el historial en localStorage');
-            }
-        }
-
-        // Cargar historial desde localStorage
-        function loadHistoryFromStorage() {
-            try {
-                const saved = localStorage.getItem('mate3HistoryData');
-                if (saved) {
-                    historyData = JSON.parse(saved);
-                    console.log(`Historial cargado: ${historyData.length} registros`);
-                    
-                    // Actualizar gráfica si existe
-                    if (mainChart && currentChartType) {
-                        updateChart(currentChartType);
-                    }
-                }
-            } catch (e) {
-                console.warn('Error cargando historial desde localStorage');
-                historyData = [];
-            }
-        }
-
-        // Limpiar historial
-        function clearHistoryData() {
-            historyData = [];
-            localStorage.removeItem('mate3HistoryData');
-            if (mainChart) {
-                mainChart.data.labels = [];
-                mainChart.data.datasets = [];
-                mainChart.update();
-            }
-            console.log('Historial limpiado');
-        }
-
-        // ===== FUNCIONES DEL DASHBOARD ORIGINAL =====
-
-        // Inicializar gráfico principal (igual que el original)
-        function initChart() {
-            const ctx = document.getElementById('mainChart').getContext('2d');
-            mainChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: []
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            labels: { color: '#fff' }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            ticks: { 
-                                color: '#aaa',
-                                maxTicksLimit: 12
-                            },
-                            grid: { color: 'rgba(255,255,255,0.1)' }
-                        },
-                        y: {
-                            ticks: { 
-                                color: '#aaa'
-                            },
-                            grid: { color: 'rgba(255,255,255,0.1)' }
-                        }
-                    },
-                    interaction: {
-                        intersect: false,
-                        mode: 'index'
-                    }
-                }
-            });
-        }
-
-        // Formatear tiempo del sistema MATE3 (igual que el original)
-        function formatSystemTime(timestamp) {
-            if (!timestamp) return '--:--:--';
-            
-            try {
-                if (typeof timestamp === 'number') {
-                    const date = new Date(timestamp * 1000);
-                    return date.toLocaleTimeString('es-CO');
-                }
-                return timestamp.toString();
-            } catch (e) {
-                return '--:--:--';
-            }
-        }
-
-        // Formatear tiempo para mostrar (igual que el original)
-        function formatTime(date, includeDate = false) {
-            const hours = date.getHours().toString().padStart(2, '0');
-            const minutes = date.getMinutes().toString().padStart(2, '0');
-            
-            if (includeDate || currentTimeRange > 24) {
-                const day = date.getDate().toString().padStart(2, '0');
-                const month = (date.getMonth() + 1).toString().padStart(2, '0');
-                return `${day}/${month} ${hours}:${minutes}`;
-            }
-            
-            return `${hours}:${minutes}`;
-        }
-
-        // Cambiar rango de tiempo (igual que el original)
-        function changeTimeRange(hours) {
-            currentTimeRange = hours;
-            
-            document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelector(`[data-hours="${hours}"]`).classList.add('active');
-            
-            document.getElementById('chartTimeRange').textContent = 
-                hours === 1 ? 'Última hora' : 
-                hours === 6 ? 'Últimas 6 horas' :
-                hours === 12 ? 'Últimas 12 horas' :
-                'Últimas 24 horas';
-            
-            if (mainChart && currentChartType) {
-                updateChart(currentChartType);
-            }
-        }
-
-        // Mostrar diferentes tipos de gráficas (igual que el original)
-        function showChart(type) {
-            currentChartType = type;
-            
-            document.querySelectorAll('.chart-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            updateChart(type);
-        }
-
-        // Actualizar gráfica (igual que el original)
-        function updateChart(type) {
-            if (!mainChart || !historyData.length) return;
-
-            const now = new Date();
-            const timeLimit = new Date(now.getTime() - (currentTimeRange * 60 * 60 * 1000));
-            
-            const filteredData = historyData.filter(item => 
-                new Date(item.timestamp) >= timeLimit
-            );
-
-            if (!filteredData.length) return;
-
-            const labels = filteredData.map(item => 
-                formatTime(new Date(item.timestamp), currentTimeRange > 24)
-            );
-
-            let datasets = [];
-            let yAxisLabel = '';
-
-            switch (type) {
-                case 'power':
-                    datasets = [{
-                        label: 'Potencia Solar (W)',
-                        data: filteredData.map(item => item.power),
-                        borderColor: chartColors.power,
-                        backgroundColor: chartColors.power + '20',
-                        fill: true,
-                        tension: 0.4
-                    }];
-                    yAxisLabel = 'Potencia (W)';
-                    break;
-
-                case 'soc':
-                    datasets = [{
-                        label: 'Estado de Carga (%)',
-                        data: filteredData.map(item => item.soc),
-                        borderColor: chartColors.soc,
-                        backgroundColor: chartColors.soc + '20',
-                        fill: true,
-                        tension: 0.4
-                    }];
-                    yAxisLabel = 'Estado de Carga (%)';
-                    break;
-
-                case 'voltage':
-                    datasets = [
-                        {
-                            label: 'Voltaje Sistema (V)',
-                            data: filteredData.map(item => item.voltage_system),
-                            borderColor: chartColors.voltage_system,
-                            tension: 0.4
-                        },
-                        {
-                            label: 'Voltaje Batería (V)',
-                            data: filteredData.map(item => item.voltage_battery),
-                            borderColor: chartColors.voltage_battery,
-                            tension: 0.4
-                        }
-                    ];
-                    yAxisLabel = 'Voltaje Sistema/Batería (V)';
-                    break;
-
-                case 'voltage_pv':
-                    datasets = [{
-                        label: 'Voltaje Paneles PV (V)',
-                        data: filteredData.map(item => item.voltage_pv),
-                        borderColor: chartColors.voltage_pv,
-                        backgroundColor: chartColors.voltage_pv + '20',
-                        fill: true,
-                        tension: 0.4
-                    }];
-                    yAxisLabel = 'Voltaje PV (V)';
-                    break;
-
-                case 'current':
-                    datasets = [
-                        {
-                            label: 'Corriente PV (A)',
-                            data: filteredData.map(item => item.current_pv),
-                            borderColor: chartColors.current_pv,
-                            tension: 0.4
-                        },
-                        {
-                            label: 'Corriente Salida (A)',
-                            data: filteredData.map(item => item.current_output),
-                            borderColor: chartColors.current_output,
-                            tension: 0.4
-                        }
-                    ];
-                    yAxisLabel = 'Corriente (A)';
-                    break;
-
-                case 'shunts':
-                    datasets = [
-                        {
-                            label: 'Shunt A (A)',
-                            data: filteredData.map(item => item.shunt_a),
-                            borderColor: chartColors.shunt_a,
-                            tension: 0.4
-                        },
-                        {
-                            label: 'Shunt B (A)',
-                            data: filteredData.map(item => item.shunt_b),
-                            borderColor: chartColors.shunt_b,
-                            tension: 0.4
-                        }
-                    ];
-                    yAxisLabel = 'Corriente (A)';
-                    break;
-
-                case 'energy':
-                    datasets = [
-                        {
-                            label: 'Energía Entrada Hoy (kWh)',
-                            data: filteredData.map(item => item.energy_input),
-                            borderColor: chartColors.energy_input,
-                            tension: 0.4
-                        },
-                        {
-                            label: 'Energía Salida Hoy (kWh)',
-                            data: filteredData.map(item => item.energy_output),
-                            borderColor: chartColors.energy_output,
-                            tension: 0.4
-                        }
-                    ];
-                    yAxisLabel = 'Energía (kWh)';
-                    break;
-            }
-
-            mainChart.data.labels = labels;
-            mainChart.data.datasets = datasets;
-            mainChart.options.scales.y.title = {
-                display: true,
-                text: yAxisLabel,
-                color: '#fff'
-            };
-            mainChart.update('none');
-
-            updateChartInfo(filteredData, type);
-        }
-
-        // Actualizar información de la gráfica (igual que el original)
-        function updateChartInfo(data, type) {
-            if (!data.length) return;
-
-            let values = [];
-            let unit = '';
-
-            switch (type) {
-                case 'power':
-                    values = data.map(item => item.power);
-                    unit = 'W';
-                    break;
-                case 'soc':
-                    values = data.map(item => item.soc);
-                    unit = '%';
-                    break;
-                case 'voltage':
-                    values = data.map(item => item.voltage_system);
-                    unit = 'V';
-                    break;
-                case 'current':
-                    values = data.map(item => item.current_pv);
-                    unit = 'A';
-                    break;
-                case 'shunts':
-                    values = data.map(item => Math.abs(item.shunt_a));
-                    unit = 'A';
-                    break;
-                case 'energy':
-                    values = data.map(item => item.energy_input);
-                    unit = 'kWh';
-                    break;
-            }
-
-            const avg = values.reduce((a, b) => a + b, 0) / values.length;
-            const max = Math.max(...values);
-
-            document.getElementById('dataPointsInfo').textContent = `Mostrando ${data.length} puntos de datos`;
-            document.getElementById('avgInfo').textContent = `Promedio: ${avg.toFixed(2)} ${unit}`;
-            document.getElementById('maxInfo').textContent = `Máximo: ${max.toFixed(2)} ${unit}`;
-        }
-
-        // Descargar datos completos como CSV (adaptado del original)
-        function downloadCompleteData() {
-            if (!historyData || historyData.length === 0) {
-                showError('No hay datos para descargar');
-                return;
-            }
-
-            let csv = 'Timestamp,Hora Colombia,';
-            csv += 'Voltaje Sistema (V),Potencia Solar (W),Estado Carga (%),';
-            csv += 'Voltaje PV (V),Corriente PV (A),Corriente Salida (A),';
-            csv += 'Voltaje Batería (V),Shunt A (A),Shunt B (A),';
-            csv += 'Energía Entrada (kWh),Energía Salida (kWh)\n';
-            
-            historyData.forEach(item => {
-                const timestamp = item.timestamp;
-                const date = new Date(timestamp);
+                // Ocultar todos los paneles
+                document.querySelectorAll('.config-panel').forEach(p => {
+                    p.classList.remove('show');
+                });
                 
-                csv += `${timestamp},`;
-                csv += `${date.toLocaleString('es-CO')},`;
-                csv += `${item.voltage_system || ''},`;
-                csv += `${item.power?.toFixed(2) || 0},`;
-                csv += `${item.soc || ''},`;
-                csv += `${item.voltage_pv || ''},`;
-                csv += `${item.current_pv || ''},`;
-                csv += `${item.current_output || ''},`;
-                csv += `${item.voltage_battery || ''},`;
-                csv += `${item.shunt_a || ''},`;
-                csv += `${item.shunt_b || ''},`;
-                csv += `${item.energy_input || ''},`;
-                csv += `${item.energy_output || ''}\n`;
-            });
+                // Mostrar el panel solicitado si estaba oculto
+                if (!isVisible) {
+                    panel.classList.add('show');
+                }
+            }
 
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = `mate3_hivemq_data_${new Date().toISOString().split('T')[0]}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
+            static updateConnectionStatus(status, message) {
+                const statusDot = document.getElementById('connectionStatus');
+                const statusText = document.getElementById('connectionText');
+                
+                statusDot.className = 'status-dot ' + status;
+                statusText.textContent = message;
+                
+                console.log(`🔗 Estado: ${status} - ${message}`);
+            }
+
+            static showAlert(message, type = 'info') {
+                const alertBox = document.getElementById('alertBox');
+                const alertMessage = document.getElementById('alertMessage');
+                
+                alertBox.className = `alert show ${type}`;
+                alertMessage.textContent = message;
+                
+                setTimeout(() => {
+                    alertBox.classList.remove('show');
+                }, 5000);
+                
+                console.log(`📢 Alerta: ${message}`);
+            }
         }
 
-        // Mostrar errores (igual que el original)
-        function showError(message) {
-            document.getElementById('alertBox').style.display = 'block';
-            document.getElementById('alertMessage').textContent = message;
+        // ===== INICIALIZACIÓN =====
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Inicializando MATE3 Dashboard...');
             
-            setTimeout(() => {
-                document.getElementById('alertBox').style.display = 'none';
-            }, 5000);
-        }
+            // Generar ID de cliente único
+            document.getElementById('mqttClientId').value = MQTTManager.generateClientId();
+            
+            // Inicializar componentes
+            ChartManager.init();
+            DataManager.loadFromStorage();
+            
+            // Si hay datos históricos, actualizar gráfica
+            if (AppState.data.history.length > 0) {
+                ChartManager.updateChart();
+            }
+            
+            console.log('✅ Dashboard inicializado correctamente');
+        });
 
-        // Limpiar al salir (adaptado para MQTT.js)
+        // Limpiar al salir
         window.addEventListener('beforeunload', function() {
-            if (mqttClient && isConnected) {
-                mqttClient.end();
+            if (AppState.mqtt.client && AppState.mqtt.connected) {
+                AppState.mqtt.client.end();
             }
         });
     </script>
