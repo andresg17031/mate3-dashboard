@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MATE3 Solar Monitor - Kiosol Universidad de los Andes</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js"></script>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -485,9 +485,9 @@
                 <div class="input-group">
                     <label for="mqttPort">Puerto</label>
                     <select id="mqttPort">
-                        <option value="8000">8000 (WebSocket)</option>
-                        <option value="8883">8883 (WSS - HiveMQ)</option>
-                        <option value="8884">8884 (WSS)</option>
+                        <option value="8000">8000 (WebSocket sin SSL)</option>
+                        <option value="8883" selected>8883 (WSS - HiveMQ)</option>
+                        <option value="8884">8884 (WSS alternativo)</option>
                     </select>
                 </div>
                 <div class="input-group">
@@ -839,7 +839,7 @@
             }
         }
 
-        // Conectar a MQTT
+        // Conectar a MQTT (usando MQTT.js)
         function connectMQTT() {
             const host = document.getElementById('mqttHost').value;
             const port = parseInt(document.getElementById('mqttPort').value);
@@ -856,38 +856,57 @@
             updateConnectionStatus('connecting', 'Conectando a MQTT...');
 
             try {
-                // Crear cliente MQTT
-                mqttClient = new Paho.MQTT.Client(host, port, clientId);
+                // Construir URL para MQTT.js
+                const protocol = (port === 8883 || port === 8884) ? 'wss' : 'ws';
+                const url = `${protocol}://${host}:${port}/mqtt`;
 
-                // Configurar callbacks
-                mqttClient.onConnectionLost = onMQTTConnectionLost;
-                mqttClient.onMessageArrived = onMQTTMessageArrived;
+                console.log('Conectando a:', url);
 
                 // Opciones de conexión
-                const connectOptions = {
-                    onSuccess: () => onMQTTConnect(topic),
-                    onFailure: onMQTTConnectFailure,
-                    useSSL: port === 8883 || port === 8884, // SSL para puertos seguros
-                    timeout: 10,
-                    keepAliveInterval: 60
+                const options = {
+                    clientId: clientId,
+                    username: username,
+                    password: password,
+                    clean: true,
+                    connectTimeout: 15000,
+                    keepalive: 60,
+                    reconnectPeriod: 0 // Desactivar reconexión automática
                 };
 
-                // Agregar credenciales si están configuradas
-                if (username && password) {
-                    connectOptions.userName = username;
-                    connectOptions.password = password;
-                }
+                // Crear cliente MQTT
+                mqttClient = mqtt.connect(url, options);
 
-                // Conectar
-                mqttClient.connect(connectOptions);
+                // Configurar eventos
+                mqttClient.on('connect', () => {
+                    console.log('✅ Conectado a MQTT exitosamente');
+                    onMQTTConnect(topic);
+                });
+
+                mqttClient.on('error', (error) => {
+                    console.error('❌ Error MQTT:', error);
+                    onMQTTConnectFailure(error);
+                });
+
+                mqttClient.on('close', () => {
+                    console.log('🔌 Conexión MQTT cerrada');
+                    onMQTTConnectionLost({ errorMessage: 'Conexión cerrada' });
+                });
+
+                mqttClient.on('message', (topic, message) => {
+                    console.log('📨 Mensaje recibido:', topic, message.toString());
+                    onMQTTMessageArrived({
+                        destinationName: topic,
+                        payloadString: message.toString()
+                    });
+                });
 
             } catch (error) {
                 console.error('Error conectando MQTT:', error);
-                updateConnectionStatus('disconnected', 'Error de conexión MQTT');
+                updateConnectionStatus('disconnected', 'Error de conexión MQTT: ' + error.message);
             }
         }
 
-        // Callback cuando se conecta exitosamente
+        // Callback cuando se conecta exitosamente (adaptado para MQTT.js)
         function onMQTTConnect(baseTopic) {
             console.log('Conectado a MQTT exitosamente');
             isConnected = true;
@@ -903,8 +922,13 @@
             ];
 
             topics.forEach(topic => {
-                mqttClient.subscribe(topic);
-                console.log('Suscrito a:', topic);
+                mqttClient.subscribe(topic, (err) => {
+                    if (!err) {
+                        console.log('✅ Suscrito a:', topic);
+                    } else {
+                        console.error('❌ Error suscribiendo a:', topic, err);
+                    }
+                });
             });
 
             // Actualizar UI
@@ -919,10 +943,32 @@
             lastConnectionStatus = Date.now();
         }
 
-        // Callback cuando falla la conexión
+        // Callback cuando falla la conexión (adaptado para MQTT.js)
         function onMQTTConnectFailure(error) {
-            console.error('Falló conexión MQTT:', error);
-            updateConnectionStatus('disconnected', 'Error: ' + (error.errorMessage || 'No se pudo conectar'));
+            console.error('❌ Falló conexión MQTT:', error);
+            
+            let errorMsg = 'Error de conexión';
+            
+            if (error.message) {
+                errorMsg = error.message;
+            } else if (error.code) {
+                switch (error.code) {
+                    case 'ECONNREFUSED':
+                        errorMsg = 'Conexión rechazada - Verifica host/puerto';
+                        break;
+                    case 'ENOTFOUND':
+                        errorMsg = 'Host no encontrado - Verifica URL';
+                        break;
+                    case 'ECONNRESET':
+                        errorMsg = 'Conexión perdida - Verifica credenciales';
+                        break;
+                    default:
+                        errorMsg = `Error ${error.code}: ${error.message || 'Desconocido'}`;
+                }
+            }
+            
+            updateConnectionStatus('disconnected', errorMsg);
+            showError('❌ ' + errorMsg);
         }
 
         // Callback cuando se pierde la conexión
@@ -967,10 +1013,10 @@
             }
         }
 
-        // Desconectar MQTT
+        // Desconectar MQTT (adaptado para MQTT.js)
         function disconnectMQTT() {
             if (mqttClient && isConnected) {
-                mqttClient.disconnect();
+                mqttClient.end();
             }
             resetMQTTInterface();
             updateConnectionStatus('disconnected', 'Desconectado manualmente');
@@ -1553,10 +1599,10 @@
             }, 5000);
         }
 
-        // Limpiar al salir
+        // Limpiar al salir (adaptado para MQTT.js)
         window.addEventListener('beforeunload', function() {
             if (mqttClient && isConnected) {
-                mqttClient.disconnect();
+                mqttClient.end();
             }
         });
     </script>
