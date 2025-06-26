@@ -1456,8 +1456,17 @@
                         },
                         scales: {
                             x: {
-                                ticks: { color: '#aaa', maxTicksLimit: 12 },
-                                grid: { color: 'rgba(255,255,255,0.1)' }
+                                type: 'category',
+                                ticks: { 
+                                    color: '#aaa',
+                                    maxTicksLimit: 20,  // Aumentar límite de ticks
+                                    autoSkip: true,
+                                    autoSkipPadding: 10
+                                },
+                                grid: { color: 'rgba(255,255,255,0.1)' },
+                                // Asegurar que muestre todo el rango
+                                min: undefined,
+                                max: undefined
                             },
                             y: {
                                 ticks: { color: '#aaa' },
@@ -1467,6 +1476,15 @@
                         interaction: {
                             intersect: false,
                             mode: 'index'
+                        },
+                        elements: {
+                            point: {
+                                radius: 2,  // Puntos más pequeños para más datos
+                                hoverRadius: 4
+                            },
+                            line: {
+                                borderWidth: 2
+                            }
                         }
                     }
                 });
@@ -1503,25 +1521,36 @@
                 
                 if (!chart || !history.length) return;
 
-                // Obtener datos dentro del rango de tiempo seleccionado
+                // Obtener TODOS los datos dentro del rango de tiempo seleccionado
                 const now = new Date();
                 const timeRangeMs = AppState.chart.currentTimeRange * 60 * 60 * 1000;
                 const startTime = new Date(now.getTime() - timeRangeMs);
                 
-                const filteredData = history.filter(item => {
+                // Filtrar datos por rango temporal completo
+                let filteredData = history.filter(item => {
                     const itemTime = new Date(item.timestamp);
                     return itemTime >= startTime && itemTime <= now;
                 });
 
+                // Si tenemos muchos datos, reducir para mejorar rendimiento pero mantener representatividad
+                if (filteredData.length > 200) {
+                    // Tomar cada N-ésimo punto para mantener la forma pero reducir cantidad
+                    const step = Math.ceil(filteredData.length / 200);
+                    filteredData = filteredData.filter((item, index) => index % step === 0);
+                    // Siempre incluir el último punto
+                    if (filteredData[filteredData.length - 1] !== history[history.length - 1]) {
+                        filteredData.push(history[history.length - 1]);
+                    }
+                }
+
                 if (!filteredData.length) {
-                    // Si no hay datos en el rango, mostrar mensaje
                     chart.data.labels = [];
                     chart.data.datasets = [];
                     chart.update('none');
                     return;
                 }
 
-                // Preparar labels con formato mejorado
+                // Preparar labels con TODOS los puntos del rango
                 const labels = filteredData.map(item => 
                     this.formatTime(new Date(item.timestamp))
                 );
@@ -1529,7 +1558,7 @@
                 // Configurar datasets según tipo
                 const { datasets, yAxisLabel } = this.getChartConfig(filteredData);
 
-                // Actualizar gráfica con animación suave
+                // Actualizar gráfica manteniendo TODO el rango temporal
                 chart.data.labels = labels;
                 chart.data.datasets = datasets;
                 chart.options.scales.y.title = {
@@ -1538,17 +1567,20 @@
                     color: '#fff'
                 };
                 
-                // Configurar autoescalado del eje X para mostrar tiempo completo
-                chart.options.scales.x.min = undefined;
-                chart.options.scales.x.max = undefined;
-                chart.options.scales.x.ticks.maxTicksLimit = Math.min(12, filteredData.length);
+                // IMPORTANTE: Configurar el eje X para mostrar TODO el rango
+                chart.options.scales.x.min = 0;  // Mostrar desde el primer punto
+                chart.options.scales.x.max = labels.length - 1;  // Hasta el último punto
+                
+                // Ajustar número de ticks según la cantidad de datos
+                const maxTicks = Math.min(20, Math.max(6, Math.ceil(labels.length / 10)));
+                chart.options.scales.x.ticks.maxTicksLimit = maxTicks;
                 
                 chart.update('none');
 
                 // Actualizar info
                 this.updateChartInfo(filteredData);
                 
-                console.log(`📊 Gráfica actualizada: ${filteredData.length} puntos en ${AppState.chart.currentTimeRange}h`);
+                console.log(`📊 Gráfica actualizada: ${filteredData.length} puntos de ${history.length} totales (${AppState.chart.currentTimeRange}h)`);
             }
 
             static getChartConfig(data) {
