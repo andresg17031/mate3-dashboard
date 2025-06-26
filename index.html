@@ -298,11 +298,6 @@
             color: var(--danger-color);
         }
 
-        .metric-value.calculated {
-            color: #00aaff;
-            font-style: italic;
-        }
-
         /* ===== GAUGE PARA BATERÍA ===== */
         .gauge-container {
             display: flex;
@@ -527,7 +522,7 @@
         <!-- ===== HEADER ===== -->
         <header>
             <h1>🌞 MATE3 Solar Monitor</h1>
-            <p class="subtitle">Sistema de Monitoreo Fotovoltaico en Tiempo Real con Calculadora PV KIOSOL</p>
+            <p class="subtitle">Sistema de Monitoreo Fotovoltaico con Calculadora PV KIOSOL Integrada</p>
             <div class="project-info">
                 <strong>🎓 Proyecto de Tesis - Universidad de los Andes</strong><br>
                 <strong>Autor:</strong> Andrés Santiago Gómez Blanco | 
@@ -611,7 +606,7 @@
             <span id="alertMessage"></span>
         </div>
 
-        <!-- ===== TARJETAS DE MÉTRICAS (6 COMPLETAS CON CALCULADORA PV) ===== -->
+        <!-- ===== TARJETAS DE MÉTRICAS (5 COMPLETAS CON CALCULADORA PV INTEGRADA) ===== -->
         <div class="grid">
             <!-- 1. Inversor -->
             <div class="card">
@@ -758,7 +753,7 @@
             </div>
         </div>
 
-        <!-- ===== GRÁFICAS (7 TIPOS CON VALORES CALCULADOS) ===== -->
+        <!-- ===== GRÁFICAS (8 TIPOS CON AUTOESCALADO TEMPORAL) ===== -->
         <div class="chart-container">
             <h2>📊 Gráficas del Sistema - <span id="chartTimeRange">Últimas 24 horas</span></h2>
             <div class="chart-selector">
@@ -768,6 +763,7 @@
                 <button class="chart-btn" onclick="ChartManager.showChart('voltage')">📊 Voltajes Sistema</button>
                 <button class="chart-btn" onclick="ChartManager.showChart('voltage_pv')">☀️ Voltaje PV</button>
                 <button class="chart-btn" onclick="ChartManager.showChart('current')">⚡ Corrientes</button>
+                <button class="chart-btn" onclick="ChartManager.showChart('shunts')">🔌 Shunts</button>
                 <button class="chart-btn" onclick="ChartManager.showChart('energy')">💡 Energía</button>
             </div>
             <div class="chart-wrapper">
@@ -795,7 +791,6 @@
             CHART: {
                 COLORS: {
                     power: '#ffd700',
-                    power_calculated: '#00aaff',
                     irradiance: '#ff8800',
                     soc: '#00ff88',
                     voltage_system: '#00aaff',
@@ -1099,13 +1094,8 @@
                 // Procesar calculadora PV
                 this.processPVCalculator(data);
                 
-                // Agregar al historial
+                // Agregar al historial (incluye actualización de gráfica)
                 this.addToHistory(data);
-                
-                // Actualizar gráfica
-                if (AppState.chart.instance) {
-                    ChartManager.updateChart();
-                }
                 
                 // Guardar último dato recibido
                 AppState.data.lastReceived = data;
@@ -1215,6 +1205,21 @@
                     
                     // Guardar en localStorage
                     this.saveToStorage();
+                    
+                    // Actualizar gráfica solo si hay datos suficientes en el rango actual
+                    if (AppState.chart.instance) {
+                        const timeRangeMs = AppState.chart.currentTimeRange * 60 * 60 * 1000;
+                        const now = new Date();
+                        const startTime = new Date(now.getTime() - timeRangeMs);
+                        const dataInRange = AppState.data.history.filter(item => 
+                            new Date(item.timestamp) >= startTime
+                        );
+                        
+                        // Solo actualizar si tenemos datos suficientes para mostrar
+                        if (dataInRange.length > 0) {
+                            ChartManager.updateChart();
+                        }
+                    }
                     
                     console.log(`✅ Datos agregados al historial: ${pvPower.toFixed(1)}W, ${pvCurrent.toFixed(2)}A, ${irradiance.toFixed(0)} W/m²`);
                 }
@@ -1498,17 +1503,25 @@
                 
                 if (!chart || !history.length) return;
 
-                // Filtrar por rango de tiempo
+                // Obtener datos dentro del rango de tiempo seleccionado
                 const now = new Date();
-                const timeLimit = new Date(now.getTime() - (AppState.chart.currentTimeRange * 60 * 60 * 1000));
+                const timeRangeMs = AppState.chart.currentTimeRange * 60 * 60 * 1000;
+                const startTime = new Date(now.getTime() - timeRangeMs);
                 
-                const filteredData = history.filter(item => 
-                    new Date(item.timestamp) >= timeLimit
-                );
+                const filteredData = history.filter(item => {
+                    const itemTime = new Date(item.timestamp);
+                    return itemTime >= startTime && itemTime <= now;
+                });
 
-                if (!filteredData.length) return;
+                if (!filteredData.length) {
+                    // Si no hay datos en el rango, mostrar mensaje
+                    chart.data.labels = [];
+                    chart.data.datasets = [];
+                    chart.update('none');
+                    return;
+                }
 
-                // Preparar labels
+                // Preparar labels con formato mejorado
                 const labels = filteredData.map(item => 
                     this.formatTime(new Date(item.timestamp))
                 );
@@ -1516,7 +1529,7 @@
                 // Configurar datasets según tipo
                 const { datasets, yAxisLabel } = this.getChartConfig(filteredData);
 
-                // Actualizar gráfica
+                // Actualizar gráfica con animación suave
                 chart.data.labels = labels;
                 chart.data.datasets = datasets;
                 chart.options.scales.y.title = {
@@ -1524,10 +1537,18 @@
                     text: yAxisLabel,
                     color: '#fff'
                 };
+                
+                // Configurar autoescalado del eje X para mostrar tiempo completo
+                chart.options.scales.x.min = undefined;
+                chart.options.scales.x.max = undefined;
+                chart.options.scales.x.ticks.maxTicksLimit = Math.min(12, filteredData.length);
+                
                 chart.update('none');
 
                 // Actualizar info
                 this.updateChartInfo(filteredData);
+                
+                console.log(`📊 Gráfica actualizada: ${filteredData.length} puntos en ${AppState.chart.currentTimeRange}h`);
             }
 
             static getChartConfig(data) {
@@ -1535,37 +1556,16 @@
                 const colors = CONFIG.CHART.COLORS;
 
                 switch (type) {
-                    case 'power_calculated':
+                    case 'power':
                         return {
                             datasets: [{
-                                label: 'Potencia PV Calculada (W)',
-                                data: data.map(item => item.power_calculated),
-                                borderColor: colors.power_calculated,
-                                backgroundColor: colors.power_calculated + '20',
+                                label: 'Potencia Solar (W)',
+                                data: data.map(item => item.power),
+                                borderColor: colors.power,
+                                backgroundColor: colors.power + '20',
                                 fill: true,
                                 tension: 0.4
                             }],
-                            yAxisLabel: 'Potencia Calculada (W)'
-                        };
-
-                    case 'power':
-                        return {
-                            datasets: [
-                                {
-                                    label: 'Potencia MATE3 (W)',
-                                    data: data.map(item => item.power),
-                                    borderColor: colors.power,
-                                    backgroundColor: colors.power + '20',
-                                    fill: true,
-                                    tension: 0.4
-                                },
-                                {
-                                    label: 'Potencia Calculada (W)',
-                                    data: data.map(item => item.power_calculated),
-                                    borderColor: colors.power_calculated,
-                                    tension: 0.4
-                                }
-                            ],
                             yAxisLabel: 'Potencia (W)'
                         };
 
@@ -1631,7 +1631,7 @@
                         return {
                             datasets: [
                                 {
-                                    label: 'Corriente PV MATE3 (A)',
+                                    label: 'Corriente PV (A)',
                                     data: data.map(item => item.current_pv),
                                     borderColor: colors.current_pv,
                                     tension: 0.4
@@ -1644,6 +1644,25 @@
                                 }
                             ],
                             yAxisLabel: 'Corriente (A)'
+                        };
+
+                    case 'shunts':
+                        return {
+                            datasets: [
+                                {
+                                    label: 'Shunt A (A)',
+                                    data: data.map(item => item.shunt_a),
+                                    borderColor: colors.shunt_a,
+                                    tension: 0.4
+                                },
+                                {
+                                    label: 'Shunt B (A)',
+                                    data: data.map(item => item.shunt_b),
+                                    borderColor: colors.shunt_b,
+                                    tension: 0.4
+                                }
+                            ],
+                            yAxisLabel: 'Corriente Shunts (A)'
                         };
 
                     case 'energy':
@@ -1673,14 +1692,22 @@
             static formatTime(date) {
                 const hours = date.getHours().toString().padStart(2, '0');
                 const minutes = date.getMinutes().toString().padStart(2, '0');
+                const seconds = date.getSeconds().toString().padStart(2, '0');
                 
-                if (AppState.chart.currentTimeRange > 24) {
+                // Para rangos cortos (1-6h), mostrar minutos y segundos
+                if (AppState.chart.currentTimeRange <= 6) {
+                    return `${hours}:${minutes}`;
+                }
+                // Para rangos largos (12-24h), mostrar solo horas
+                else if (AppState.chart.currentTimeRange <= 24) {
+                    return `${hours}:${minutes}`;
+                }
+                // Para rangos muy largos, incluir fecha
+                else {
                     const day = date.getDate().toString().padStart(2, '0');
                     const month = (date.getMonth() + 1).toString().padStart(2, '0');
                     return `${day}/${month} ${hours}:${minutes}`;
                 }
-                
-                return `${hours}:${minutes}`;
             }
 
             static updateChartInfo(data) {
@@ -1691,10 +1718,6 @@
                 let unit = '';
 
                 switch (type) {
-                    case 'power_calculated':
-                        values = data.map(item => item.power_calculated);
-                        unit = 'W';
-                        break;
                     case 'power':
                         values = data.map(item => item.power);
                         unit = 'W';
@@ -1714,6 +1737,10 @@
                         break;
                     case 'current':
                         values = data.map(item => item.current_pv);
+                        unit = 'A';
+                        break;
+                    case 'shunts':
+                        values = data.map(item => Math.abs(item.shunt_a));
                         unit = 'A';
                         break;
                     case 'energy':
@@ -1790,8 +1817,8 @@
                     Math.floor((new Date() - AppState.mqtt.connectTime) / 1000) : 0;
                 
                 const info = `
-🎓 SISTEMA MATE3 CON CALCULADORA PV KIOSOL
-═══════════════════════════════════════
+🎓 SISTEMA MATE3 CON CALCULADORA PV KIOSOL INTEGRADA
+═══════════════════════════════════════════════
 
 📊 Estadísticas del Sistema:
 • Versión: ${CONFIG.VERSION}
@@ -1799,17 +1826,17 @@
 • Tiempo online: ${DataManager.formatDuration(uptime)}
 • Mensajes MQTT: ${AppState.mqtt.messageCount}
 
-🧮 Calculadora PV KIOSOL:
+🧮 Calculadora PV KIOSOL Integrada:
+• Los valores de corriente y potencia PV son calculados
 • Sistema: ${AppState.pvCalculator.P_max}W (${AppState.pvCalculator.numPaneles} paneles)
-• Voltaje MPP: ${AppState.pvCalculator.V_mpp_sistema}V
-• Corriente máxima: ${AppState.pvCalculator.I_sc}A
+• Algoritmos científicos compensan limitaciones del MATE3
 
 🎯 Autor: Andrés Santiago Gómez Blanco
 🏛️ Universidad de los Andes
 🔬 Laboratorio Kiosol
 📅 Junio 2025
 
-✅ Sistema funcionando correctamente con análisis PV
+✅ Sistema funcionando con datos PV precisos
                 `;
                 
                 this.showAlert(info, 'success');
@@ -1842,10 +1869,10 @@
                 
                 // Mostrar mensaje de bienvenida
                 setTimeout(() => {
-                    UIManager.showAlert('🧮 Sistema MATE3 v2.1 con Calculadora PV KIOSOL cargado correctamente. Presiona "Conectar HiveMQ" para iniciar.', 'success');
+                    UIManager.showAlert('🧮 Sistema MATE3 v2.1 con Calculadora PV KIOSOL integrada. Gráficas con autoescalado temporal mejorado. Los valores de corriente y potencia solar son calculados científicamente. Presiona "Conectar HiveMQ" para iniciar.', 'success');
                 }, 1000);
                 
-                console.log('✅ Dashboard con Calculadora PV inicializado correctamente');
+                console.log('✅ Dashboard con Calculadora PV integrada inicializado correctamente');
             }
 
             static getMqttConfig() {
