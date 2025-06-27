@@ -811,7 +811,7 @@
                     CONFIG: 'mate3MqttConfig'
                 }
             },
-            VERSION: '2.0.0'
+            VERSION: '2.0.1'
         };
 
         // ===== CALCULADORA PV KIOSOL =====
@@ -1191,6 +1191,7 @@
                 UIManager.showAlert('🗑️ Historial limpiado', 'success');
             }
 
+            // ===== FUNCIÓN CSV CORREGIDA =====
             static downloadCSV() {
                 if (!AppState.data.history.length) {
                     UIManager.showAlert('No hay datos para descargar', 'warning');
@@ -1201,7 +1202,32 @@
                 
                 AppState.data.history.forEach(item => {
                     const date = new Date(item.timestamp);
-                    csv += `${item.timestamp},${date.toLocaleString('es-CO')},${item.power.toFixed(2)},${item.irradiance.toFixed(0)},${item.soc},${item.voltage_system},${item.voltage_pv},${item.voltage_battery},${item.current_pv.toFixed(2)},${item.current_output},${item.shunt_a},${item.shunt_b},${item.energy_input},${item.energy_output}\n`;
+                    
+                    // Función helper para validar y formatear números
+                    const safeFixed = (value, decimals = 2) => {
+                        const num = parseFloat(value);
+                        return isNaN(num) ? '0' : num.toFixed(decimals);
+                    };
+                    
+                    // Función helper para valores que pueden no existir
+                    const safeValue = (value) => {
+                        return (value !== undefined && value !== null) ? value : '0';
+                    };
+                    
+                    csv += `${item.timestamp},`;
+                    csv += `${date.toLocaleString('es-CO')},`;
+                    csv += `${safeFixed(item.power, 2)},`;
+                    csv += `${safeFixed(item.irradiance, 0)},`;
+                    csv += `${safeValue(item.soc)},`;
+                    csv += `${safeValue(item.voltage_system)},`;
+                    csv += `${safeValue(item.voltage_pv)},`;
+                    csv += `${safeValue(item.voltage_battery)},`;
+                    csv += `${safeFixed(item.current_pv, 2)},`;
+                    csv += `${safeValue(item.current_output)},`;
+                    csv += `${safeValue(item.shunt_a)},`;
+                    csv += `${safeValue(item.shunt_b)},`;
+                    csv += `${safeValue(item.energy_input)},`;
+                    csv += `${safeValue(item.energy_output)}\n`;
                 });
 
                 const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -1739,7 +1765,7 @@
 ═══════════════════════════════════════
 
 📊 Estadísticas del Sistema:
-• Versión: ${CONFIG.VERSION}
+• Versión: ${CONFIG.VERSION} (CSV CORREGIDO)
 • Datos en memoria: ${AppState.data.history.length}
 • Tiempo online: ${DataManager.formatDuration(uptime)}
 • Mensajes MQTT: ${AppState.mqtt.messageCount}
@@ -1754,7 +1780,7 @@
 🔬 Laboratorio Kiosol
 📅 Junio 2025
 
-✅ Sistema funcionando correctamente con datos PV precisos
+✅ Sistema funcionando correctamente con CSV CORREGIDO
                 `;
                 
                 this.showAlert(info, 'success');
@@ -1765,7 +1791,7 @@
         // ===== GESTIÓN DE APLICACIÓN =====
         class AppManager {
             static init() {
-                console.log('🚀 Inicializando MATE3 Dashboard con Calculadora PV KIOSOL...');
+                console.log('🚀 Inicializando MATE3 Dashboard con CSV CORREGIDO...');
                 
                 // Generar ID de cliente único
                 document.getElementById('mqttClientId').value = MQTTManager.generateClientId();
@@ -1787,10 +1813,10 @@
                 
                 // Mostrar mensaje de bienvenida
                 setTimeout(() => {
-                    UIManager.showAlert('🧮 MATE3 Dashboard con Calculadora PV KIOSOL integrada. Los valores de corriente y potencia solar son calculados científicamente. ¡El CSV funciona correctamente!', 'success');
+                    UIManager.showAlert('✅ MATE3 Dashboard cargado con función CSV CORREGIDA. ¡Los problemas de descarga han sido solucionados!', 'success');
                 }, 1000);
                 
-                console.log('✅ Dashboard inicializado correctamente');
+                console.log('✅ Dashboard inicializado correctamente con CSV funcionando');
             }
 
             static getMqttConfig() {
