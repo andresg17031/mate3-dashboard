@@ -587,6 +587,7 @@
             </div>
             <div class="control-group">
                 <button class="btn btn-secondary" onclick="DataManager.downloadCSV()">📥 CSV</button>
+                <button class="btn btn-secondary" onclick="DataManager.debugData()">🔍 Debug Datos</button>
                 <button class="btn btn-secondary" onclick="DataManager.clearHistory()">🗑️ Limpiar</button>
                 <button class="btn btn-secondary" onclick="ChartManager.forceUpdateChart()">🔄 Actualizar Gráfica</button>
                 <button class="btn btn-secondary" onclick="UIManager.showSystemInfo()">📊 Info</button>
@@ -754,7 +755,7 @@
             </div>
         </div>
 
-        <!-- ===== GRÁFICAS (8 TIPOS CON AUTOESCALADO TEMPORAL) ===== -->
+        <!-- ===== GRÁFICAS (8 TIPOS - SIMPLIFICADAS Y FUNCIONALES) ===== -->
         <div class="chart-container">
             <h2>📊 Gráficas del Sistema - <span id="chartTimeRange">Últimas 24 horas</span></h2>
             <div class="chart-selector">
@@ -1207,17 +1208,14 @@
                     // Guardar en localStorage
                     this.saveToStorage();
                     
-                    // Actualizar gráfica solo cada cierto número de nuevos datos para evitar "corrimiento"
-                    // o cuando hay cambios significativos
+                    // Actualizar gráfica cada 10 datos o si es uno de los primeros
                     const shouldUpdateChart = (
-                        AppState.data.history.length % 5 === 0 ||  // Cada 5 nuevos datos
-                        AppState.data.history.length < 10 ||       // Siempre actualizar al inicio
-                        Math.abs(pvPower - (AppState.data.lastPowerValue || 0)) > 10  // Cambio significativo en potencia
+                        AppState.data.history.length % 10 === 0 ||  // Cada 10 nuevos datos
+                        AppState.data.history.length <= 5          // Siempre los primeros 5
                     );
                     
                     if (shouldUpdateChart && AppState.chart.instance) {
                         ChartManager.updateChart();
-                        AppState.data.lastPowerValue = pvPower;  // Guardar para comparación
                     }
                     
                     console.log(`✅ Datos agregados al historial: ${pvPower.toFixed(1)}W, ${pvCurrent.toFixed(2)}A, ${irradiance.toFixed(0)} W/m² (Total: ${AppState.data.history.length})`);
@@ -1280,6 +1278,61 @@
                 window.URL.revokeObjectURL(url);
                 
                 UIManager.showAlert('📥 Archivo CSV con datos calculados descargado exitosamente', 'success');
+            }
+
+            static debugData() {
+                console.log('🔍 DEBUG: Estado completo del sistema');
+                console.log('📊 Total datos en historial:', AppState.data.history.length);
+                console.log('🕐 Rango temporal actual:', AppState.chart.currentTimeRange, 'horas');
+                
+                if (AppState.data.history.length > 0) {
+                    const lastItem = AppState.data.history[AppState.data.history.length - 1];
+                    console.log('📝 Último dato registrado:', lastItem);
+                    
+                    const firstItem = AppState.data.history[0];
+                    console.log('📝 Primer dato registrado:', firstItem);
+                    
+                    const timeSpan = new Date(lastItem.timestamp) - new Date(firstItem.timestamp);
+                    const timeSpanHours = timeSpan / (1000 * 60 * 60);
+                    console.log('⏱️ Rango temporal de datos:', timeSpanHours.toFixed(1), 'horas');
+                    
+                    // Verificar datos recientes
+                    const now = new Date();
+                    const recentData = AppState.data.history.filter(item => {
+                        const itemTime = new Date(item.timestamp);
+                        return (now - itemTime) < (60 * 60 * 1000); // Última hora
+                    });
+                    console.log('📊 Datos de la última hora:', recentData.length);
+                    
+                    // Mostrar muestra de datos
+                    console.log('📋 Muestra de datos (últimos 3):');
+                    AppState.data.history.slice(-3).forEach((item, i) => {
+                        console.log(`  ${i+1}:`, {
+                            time: new Date(item.timestamp).toLocaleTimeString(),
+                            power: item.power,
+                            current_pv: item.current_pv,
+                            irradiance: item.irradiance,
+                            voltage_pv: item.voltage_pv
+                        });
+                    });
+                } else {
+                    console.log('❌ No hay datos en el historial');
+                }
+                
+                console.log('🔗 Estado MQTT:', {
+                    connected: AppState.mqtt.connected,
+                    messageCount: AppState.mqtt.messageCount
+                });
+                
+                console.log('🧮 Último análisis PV:', AppState.data.lastPVAnalysis);
+                
+                UIManager.showAlert(
+                    `🔍 Debug: ${AppState.data.history.length} registros en memoria. ` +
+                    `MQTT: ${AppState.mqtt.connected ? 'Conectado' : 'Desconectado'}. ` +
+                    `Última PV: ${AppState.data.lastPVAnalysis ? 'OK' : 'Sin datos'}. ` +
+                    `Ver consola para detalles completos.`, 
+                    'info'
+                );
             }
 
             static updateSystemStats() {
@@ -1534,68 +1587,71 @@
                 const chart = AppState.chart.instance;
                 const history = AppState.data.history;
                 
-                if (!chart || !history.length) return;
-
-                // Obtener TODOS los datos dentro del rango de tiempo seleccionado
-                const now = new Date();
-                const timeRangeMs = AppState.chart.currentTimeRange * 60 * 60 * 1000;
-                const startTime = new Date(now.getTime() - timeRangeMs);
-                
-                // Filtrar datos por rango temporal completo
-                let filteredData = history.filter(item => {
-                    const itemTime = new Date(item.timestamp);
-                    return itemTime >= startTime && itemTime <= now;
-                });
-
-                // Si tenemos muchos datos, reducir para mejorar rendimiento pero mantener representatividad
-                if (filteredData.length > 200) {
-                    // Tomar cada N-ésimo punto para mantener la forma pero reducir cantidad
-                    const step = Math.ceil(filteredData.length / 200);
-                    filteredData = filteredData.filter((item, index) => index % step === 0);
-                    // Siempre incluir el último punto
-                    if (filteredData[filteredData.length - 1] !== history[history.length - 1]) {
-                        filteredData.push(history[history.length - 1]);
-                    }
+                if (!chart) {
+                    console.log('⚠️ Chart no inicializado');
+                    return;
                 }
-
-                if (!filteredData.length) {
+                
+                if (!history.length) {
+                    console.log('⚠️ No hay datos para mostrar');
                     chart.data.labels = [];
                     chart.data.datasets = [];
                     chart.update('none');
                     return;
                 }
 
-                // Preparar labels con TODOS los puntos del rango
-                const labels = filteredData.map(item => 
-                    this.formatTime(new Date(item.timestamp))
-                );
+                try {
+                    // SIMPLIFICADO: Obtener datos según rango temporal
+                    const now = new Date();
+                    const timeRangeMs = AppState.chart.currentTimeRange * 60 * 60 * 1000;
+                    const startTime = new Date(now.getTime() - timeRangeMs);
+                    
+                    let filteredData = history.filter(item => {
+                        const itemTime = new Date(item.timestamp);
+                        return itemTime >= startTime;
+                    });
 
-                // Configurar datasets según tipo
-                const { datasets, yAxisLabel } = this.getChartConfig(filteredData);
+                    // Si no hay datos en el rango, usar los últimos datos disponibles
+                    if (!filteredData.length && history.length > 0) {
+                        filteredData = history.slice(-20); // Últimos 20 puntos como fallback
+                        console.log('📊 Usando fallback: últimos 20 puntos');
+                    }
 
-                // Actualizar gráfica manteniendo TODO el rango temporal
-                chart.data.labels = labels;
-                chart.data.datasets = datasets;
-                chart.options.scales.y.title = {
-                    display: true,
-                    text: yAxisLabel,
-                    color: '#fff'
-                };
-                
-                // IMPORTANTE: Configurar el eje X para mostrar TODO el rango
-                chart.options.scales.x.min = 0;  // Mostrar desde el primer punto
-                chart.options.scales.x.max = labels.length - 1;  // Hasta el último punto
-                
-                // Ajustar número de ticks según la cantidad de datos
-                const maxTicks = Math.min(20, Math.max(6, Math.ceil(labels.length / 10)));
-                chart.options.scales.x.ticks.maxTicksLimit = maxTicks;
-                
-                chart.update('none');
+                    if (!filteredData.length) {
+                        console.log('❌ No hay datos para mostrar en el rango');
+                        return;
+                    }
 
-                // Actualizar info
-                this.updateChartInfo(filteredData);
-                
-                console.log(`📊 Gráfica actualizada: ${filteredData.length} puntos de ${history.length} totales (${AppState.chart.currentTimeRange}h)`);
+                    // Preparar labels simples
+                    const labels = filteredData.map(item => {
+                        const date = new Date(item.timestamp);
+                        const hours = date.getHours().toString().padStart(2, '0');
+                        const minutes = date.getMinutes().toString().padStart(2, '0');
+                        return `${hours}:${minutes}`;
+                    });
+
+                    // Configurar datasets según tipo
+                    const { datasets, yAxisLabel } = this.getChartConfig(filteredData);
+
+                    // Actualizar gráfica de forma simple
+                    chart.data.labels = labels;
+                    chart.data.datasets = datasets;
+                    
+                    if (chart.options.scales.y.title) {
+                        chart.options.scales.y.title.text = yAxisLabel;
+                    }
+                    
+                    chart.update('none');
+
+                    // Actualizar info
+                    this.updateChartInfo(filteredData);
+                    
+                    console.log(`📊 Gráfica actualizada: ${filteredData.length} puntos (${AppState.chart.currentTimeRange}h)`);
+                    
+                } catch (error) {
+                    console.error('❌ Error actualizando gráfica:', error);
+                    UIManager.showAlert('Error actualizando gráfica: ' + error.message, 'error');
+                }
             }
 
             static getChartConfig(data) {
@@ -1923,7 +1979,7 @@
                 
                 // Mostrar mensaje de bienvenida
                 setTimeout(() => {
-                    UIManager.showAlert('🧮 Sistema MATE3 v2.1 mejorado: Calculadora PV integrada + Autoescalado temporal corregido. Las gráficas ahora muestran el rango temporal completo sin desplazarse. Usa el botón "🔄 Actualizar Gráfica" si necesitas refrescar la vista.', 'success');
+                    UIManager.showAlert('🔧 Sistema MATE3 v2.1 con CORRECCIONES: CSV con manejo robusto de errores, gráfica simplificada funcional, botón Debug agregado. ¡Prueba la descarga CSV ahora!', 'success');
                 }, 1000);
                 
                 console.log('✅ Dashboard con Calculadora PV integrada inicializado correctamente');
