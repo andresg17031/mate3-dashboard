@@ -522,7 +522,7 @@
         <!-- ===== HEADER ===== -->
         <header>
             <h1>🌞 MATE3 Solar Monitor</h1>
-            <p class="subtitle">Sistema de Monitoreo Fotovoltaico con Calculadora PV KIOSOL Integrada</p>
+            <p class="subtitle">Sistema de Monitoreo Fotovoltaico con Calculadora PV KIOSOL</p>
             <div class="project-info">
                 <strong>🎓 Proyecto de Tesis - Universidad de los Andes</strong><br>
                 <strong>Autor:</strong> Andrés Santiago Gómez Blanco | 
@@ -588,7 +588,6 @@
             <div class="control-group">
                 <button class="btn btn-secondary" onclick="DataManager.downloadCSV()">📥 CSV</button>
                 <button class="btn btn-secondary" onclick="DataManager.clearHistory()">🗑️ Limpiar</button>
-                <button class="btn btn-secondary" onclick="ChartManager.forceUpdateChart()">🔄 Actualizar Gráfica</button>
                 <button class="btn btn-secondary" onclick="UIManager.showSystemInfo()">📊 Info</button>
             </div>
         </div>
@@ -607,7 +606,7 @@
             <span id="alertMessage"></span>
         </div>
 
-        <!-- ===== TARJETAS DE MÉTRICAS (5 COMPLETAS CON CALCULADORA PV INTEGRADA) ===== -->
+        <!-- ===== TARJETAS DE MÉTRICAS (5 COMPLETAS) ===== -->
         <div class="grid">
             <!-- 1. Inversor -->
             <div class="card">
@@ -699,7 +698,7 @@
                 </div>
             </div>
 
-            <!-- 5. Monitoreo de Corriente -->
+            <!-- 4. Monitoreo de Corriente -->
             <div class="card">
                 <h2><span class="card-icon">⚡</span> Monitoreo de Corriente</h2>
                 <div class="metric">
@@ -724,7 +723,7 @@
                 </div>
             </div>
 
-            <!-- 6. Estado del Sistema -->
+            <!-- 5. Estado del Sistema -->
             <div class="card">
                 <h2><span class="card-icon">📊</span> Estado del Sistema</h2>
                 <div class="metric">
@@ -754,12 +753,12 @@
             </div>
         </div>
 
-        <!-- ===== GRÁFICAS (8 TIPOS - SIMPLIFICADAS Y FUNCIONALES) ===== -->
+        <!-- ===== GRÁFICAS (8 TIPOS COMPLETOS) ===== -->
         <div class="chart-container">
             <h2>📊 Gráficas del Sistema - <span id="chartTimeRange">Últimas 24 horas</span></h2>
             <div class="chart-selector">
                 <button class="chart-btn active" onclick="ChartManager.showChart('power')">⚡ Potencia Solar</button>
-                <button class="chart-btn" onclick="ChartManager.showChart('irradiance')">☀️ Irradiancia Estimada</button>
+                <button class="chart-btn" onclick="ChartManager.showChart('irradiance')">☀️ Irradiancia</button>
                 <button class="chart-btn" onclick="ChartManager.showChart('soc')">🔋 Estado de Carga</button>
                 <button class="chart-btn" onclick="ChartManager.showChart('voltage')">📊 Voltajes Sistema</button>
                 <button class="chart-btn" onclick="ChartManager.showChart('voltage_pv')">☀️ Voltaje PV</button>
@@ -778,7 +777,7 @@
         </div>
     </div>
 
-    <!-- ===== SCRIPTS MODULARES CON CALCULADORA PV ===== -->
+    <!-- ===== SCRIPTS MODULARES ===== -->
     <script>
         // ===== CONFIGURACIÓN GLOBAL =====
         const CONFIG = {
@@ -812,7 +811,7 @@
                     CONFIG: 'mate3MqttConfig'
                 }
             },
-            VERSION: '2.2.0'
+            VERSION: '2.0.0'
         };
 
         // ===== CALCULADORA PV KIOSOL =====
@@ -825,11 +824,6 @@
                 this.I_sc = 8.0;                // Corriente cortocircuito (A)
                 this.I_mpp = 7.5;               // Corriente máxima potencia (A)
                 this.P_max = 1050.0;            // Potencia máxima sistema (W)
-                
-                // Parámetros por panel individual
-                this.V_oc = this.V_oc_sistema / this.numPaneles;        // ~28.3V por panel
-                this.V_mpp = this.V_mpp_sistema / this.numPaneles;      // ~23.3V por panel
-                this.P_max_panel = this.P_max / this.numPaneles;        // ~175W por panel
                 
                 // Coeficientes de temperatura
                 this.temp_coef_V = -0.31;  // %/°C para voltaje
@@ -907,39 +901,13 @@
                     const I_pv = this.calcularCorrientePV(V_pv_sistema, temperatura, irradiancia);
                     const P_pv = V_pv_sistema * I_pv;
                     
-                    // Eficiencia respecto a potencia máxima del sistema
-                    const eficiencia = (P_pv / this.P_max) * 100;
-                    
-                    // Factor de irradiancia como porcentaje
-                    const factor_irradiancia = (irradiancia / this.STC_irradiance) * 100;
-                    
                     return {
-                        voltaje_pv_sistema: V_pv_sistema,
-                        voltaje_pv_por_panel: V_pv_sistema / this.numPaneles,
                         corriente_pv: I_pv,
                         potencia_pv: P_pv,
-                        irradiancia_estimada: irradiancia,
-                        factor_irradiancia_pct: factor_irradiancia,
-                        eficiencia_pct: eficiencia,
-                        temperatura: temperatura,
-                        estado: this.clasificarEstado(irradiancia, P_pv)
+                        irradiancia_estimada: irradiancia
                     };
                 } catch (e) {
                     return null;
-                }
-            }
-            
-            clasificarEstado(irradiancia, potencia) {
-                if (irradiancia < 50) {
-                    return "Noche/Muy poca luz";
-                } else if (irradiancia < 200) {
-                    return "Amanecer/Atardecer";
-                } else if (irradiancia < 500) {
-                    return "Nublado/Sombra parcial";
-                } else if (irradiancia < 800) {
-                    return "Sol moderado";
-                } else {
-                    return "Sol pleno";
                 }
             }
         }
@@ -1084,7 +1052,7 @@
             }
         }
 
-        // ===== GESTIÓN DE DATOS CON CALCULADORA PV =====
+        // ===== GESTIÓN DE DATOS =====
         class DataManager {
             static processCompleteData(data) {
                 console.log('Procesando datos completos:', data);
@@ -1092,48 +1060,16 @@
                 // Actualizar UI
                 UIUpdater.updateAllMetrics(data);
                 
-                // Procesar calculadora PV
-                this.processPVCalculator(data);
-                
-                // Agregar al historial (incluye actualización de gráfica)
+                // Agregar al historial
                 this.addToHistory(data);
+                
+                // Actualizar gráfica
+                if (AppState.chart.instance) {
+                    ChartManager.updateChart();
+                }
                 
                 // Guardar último dato recibido
                 AppState.data.lastReceived = data;
-            }
-
-            static processPVCalculator(data) {
-                const cc = data.charge_controller;
-                const battery = data.battery;
-                
-                if (!cc || !battery) return;
-                
-                const pvVoltage = parseFloat(cc.input_voltage) || 0;
-                let temperatura = 25.0;
-                
-                // Extraer temperatura de la batería
-                if (battery.temperature) {
-                    try {
-                        temperatura = parseFloat(battery.temperature.toString().replace(' C', '').replace('°C', ''));
-                    } catch (e) {
-                        temperatura = 25.0;
-                    }
-                }
-                
-                // Solo calcular si hay voltaje PV significativo
-                if (pvVoltage > 5) {
-                    const analisisPV = AppState.pvCalculator.analisisCompleto(pvVoltage, temperatura);
-                    
-                    if (analisisPV) {
-                        console.log('🧮 Análisis PV calculado:', analisisPV);
-                        
-                        // Guardar para historial y actualización de UI
-                        AppState.data.lastPVAnalysis = analisisPV;
-                    }
-                } else {
-                    // Sin datos PV
-                    AppState.data.lastPVAnalysis = null;
-                }
             }
 
             static processPartialData(topic, data) {
@@ -1160,19 +1096,29 @@
                 const pvVoltage = parseFloat(data.charge_controller?.input_voltage) || 0;
                 const outputCurrent = parseFloat(data.charge_controller?.output_current) || 0;
                 
-                // Usar valores calculados si están disponibles
-                const analisisPV = AppState.data.lastPVAnalysis;
-                let pvCurrent, pvPower, irradiance;
+                // Usar calculadora PV para obtener valores reales
+                let pvCurrent = 0;
+                let pvPower = 0;
+                let irradiance = 0;
                 
-                if (analisisPV) {
-                    pvCurrent = analisisPV.corriente_pv;
-                    pvPower = analisisPV.potencia_pv;
-                    irradiance = analisisPV.irradiancia_estimada;
-                } else {
-                    // Fallback a datos MATE3
-                    pvCurrent = parseFloat(data.charge_controller?.input_current) || 0;
-                    pvPower = pvVoltage * pvCurrent;
-                    irradiance = 0;
+                if (pvVoltage > 5) {
+                    // Extraer temperatura
+                    let temperatura = 25.0;
+                    if (data.battery?.temperature) {
+                        try {
+                            temperatura = parseFloat(data.battery.temperature.toString().replace(' C', '').replace('°C', ''));
+                        } catch (e) {
+                            temperatura = 25.0;
+                        }
+                    }
+                    
+                    // Calcular con la calculadora PV
+                    const analisisPV = AppState.pvCalculator.analisisCompleto(pvVoltage, temperatura);
+                    if (analisisPV) {
+                        pvCurrent = analisisPV.corriente_pv;
+                        pvPower = analisisPV.potencia_pv;
+                        irradiance = analisisPV.irradiancia_estimada;
+                    }
                 }
                 
                 // Solo agregar si hay datos válidos
@@ -1184,7 +1130,7 @@
                     const historyEntry = {
                         timestamp: new Date().toISOString(),
                         power: pvPower,  // Usar potencia calculada
-                        irradiance: irradiance,
+                        irradiance: irradiance,  // Agregar irradiancia
                         soc: data.battery?.soc || 0,
                         voltage_system: parseFloat(data.system?.battery_voltage) || 0,
                         voltage_pv: pvVoltage,
@@ -1207,17 +1153,7 @@
                     // Guardar en localStorage
                     this.saveToStorage();
                     
-                    // Actualizar gráfica cada 10 datos o si es uno de los primeros
-                    const shouldUpdateChart = (
-                        AppState.data.history.length % 10 === 0 ||  // Cada 10 nuevos datos
-                        AppState.data.history.length <= 5          // Siempre los primeros 5
-                    );
-                    
-                    if (shouldUpdateChart && AppState.chart.instance) {
-                        ChartManager.updateChart();
-                    }
-                    
-                    console.log(`✅ Datos agregados al historial: ${pvPower.toFixed(1)}W, ${pvCurrent.toFixed(2)}A, ${irradiance.toFixed(0)} W/m² (Total: ${AppState.data.history.length})`);
+                    console.log('✅ Datos agregados al historial:', pvPower.toFixed(1) + 'W');
                 }
             }
 
@@ -1261,22 +1197,22 @@
                     return;
                 }
 
-                let csv = 'Timestamp,Hora,Potencia_MATE3(W),Potencia_Calculada(W),Irradiancia(W/m²),SoC(%),V_Sistema(V),V_PV(V),V_Bateria(V),I_PV_MATE3(A),I_Salida(A),Shunt_A(A),Shunt_B(A),E_Entrada(kWh),E_Salida(kWh)\n';
+                let csv = 'Timestamp,Hora,Potencia(W),Irradiancia(W/m²),SoC(%),V_Sistema(V),V_PV(V),V_Bateria(V),I_PV(A),I_Salida(A),Shunt_A(A),Shunt_B(A),E_Entrada(kWh),E_Salida(kWh)\n';
                 
                 AppState.data.history.forEach(item => {
                     const date = new Date(item.timestamp);
-                    csv += `${item.timestamp},${date.toLocaleString('es-CO')},${item.power.toFixed(2)},${item.power_calculated.toFixed(2)},${item.irradiance.toFixed(0)},${item.soc},${item.voltage_system},${item.voltage_pv},${item.voltage_battery},${item.current_pv},${item.current_output},${item.shunt_a},${item.shunt_b},${item.energy_input},${item.energy_output}\n`;
+                    csv += `${item.timestamp},${date.toLocaleString('es-CO')},${item.power.toFixed(2)},${item.irradiance.toFixed(0)},${item.soc},${item.voltage_system},${item.voltage_pv},${item.voltage_battery},${item.current_pv.toFixed(2)},${item.current_output},${item.shunt_a},${item.shunt_b},${item.energy_input},${item.energy_output}\n`;
                 });
 
                 const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `mate3_data_con_calculadora_pv_${new Date().toISOString().split('T')[0]}.csv`;
+                a.download = `mate3_data_${new Date().toISOString().split('T')[0]}.csv`;
                 a.click();
                 window.URL.revokeObjectURL(url);
                 
-                UIManager.showAlert('📥 Archivo CSV con datos calculados descargado exitosamente', 'success');
+                UIManager.showAlert('📥 Archivo CSV descargado exitosamente', 'success');
             }
 
             static updateSystemStats() {
@@ -1309,7 +1245,7 @@
         class UIUpdater {
             static updateAllMetrics(data) {
                 this.updateInverter(data.inverter);
-                this.updateChargeController(data.charge_controller);
+                this.updateChargeController(data.charge_controller, data.battery);
                 this.updateBattery(data.battery);
                 this.updateSystem(data.system);
             }
@@ -1341,26 +1277,36 @@
                 statusEl.className = 'metric-value ' + statusClass;
             }
 
-            static updateChargeController(cc) {
+            static updateChargeController(cc, battery) {
                 if (!cc) return;
 
                 const pvVoltage = parseFloat(cc.input_voltage) || 0;
                 const outputCurrent = parseFloat(cc.output_current) || 0;
                 const outputKwh = parseFloat(cc.output_kwh) || 0;
                 
-                // Usar valores calculados si están disponibles
-                const analisisPV = AppState.data.lastPVAnalysis;
-                let pvCurrent, pvPower, irradiance;
+                // Usar calculadora PV para valores reales
+                let pvCurrent = parseFloat(cc.input_current) || 0;  // Fallback a MATE3
+                let pvPower = pvVoltage * pvCurrent;  // Fallback a MATE3
+                let irradiance = 0;
                 
-                if (analisisPV) {
-                    pvCurrent = analisisPV.corriente_pv;
-                    pvPower = analisisPV.potencia_pv;
-                    irradiance = analisisPV.irradiancia_estimada;
-                } else {
-                    // Fallback a datos MATE3 (que suelen ser 0)
-                    pvCurrent = parseFloat(cc.input_current) || 0;
-                    pvPower = pvVoltage * pvCurrent;
-                    irradiance = 0;
+                if (pvVoltage > 5) {
+                    // Extraer temperatura
+                    let temperatura = 25.0;
+                    if (battery?.temperature) {
+                        try {
+                            temperatura = parseFloat(battery.temperature.toString().replace(' C', '').replace('°C', ''));
+                        } catch (e) {
+                            temperatura = 25.0;
+                        }
+                    }
+                    
+                    // Calcular con la calculadora PV
+                    const analisisPV = AppState.pvCalculator.analisisCompleto(pvVoltage, temperatura);
+                    if (analisisPV) {
+                        pvCurrent = analisisPV.corriente_pv;  // Reemplazar valor del MATE3
+                        pvPower = analisisPV.potencia_pv;     // Reemplazar valor del MATE3
+                        irradiance = analisisPV.irradiancia_estimada;
+                    }
                 }
 
                 document.getElementById('ccMode').textContent = cc.mode ? cc.mode.trim() : '--';
@@ -1437,7 +1383,7 @@
             }
         }
 
-        // ===== GESTIÓN DE GRÁFICAS CON CALCULADORA PV =====
+        // ===== GESTIÓN DE GRÁFICAS =====
         class ChartManager {
             static init() {
                 const ctx = document.getElementById('mainChart').getContext('2d');
@@ -1452,17 +1398,8 @@
                         },
                         scales: {
                             x: {
-                                type: 'category',
-                                ticks: { 
-                                    color: '#aaa',
-                                    maxTicksLimit: 20,  // Aumentar límite de ticks
-                                    autoSkip: true,
-                                    autoSkipPadding: 10
-                                },
-                                grid: { color: 'rgba(255,255,255,0.1)' },
-                                // Asegurar que muestre todo el rango
-                                min: undefined,
-                                max: undefined
+                                ticks: { color: '#aaa', maxTicksLimit: 12 },
+                                grid: { color: 'rgba(255,255,255,0.1)' }
                             },
                             y: {
                                 ticks: { color: '#aaa' },
@@ -1472,15 +1409,6 @@
                         interaction: {
                             intersect: false,
                             mode: 'index'
-                        },
-                        elements: {
-                            point: {
-                                radius: 2,  // Puntos más pequeños para más datos
-                                hoverRadius: 4
-                            },
-                            line: {
-                                borderWidth: 2
-                            }
                         }
                     }
                 });
@@ -1497,24 +1425,8 @@
                 const rangeText = hours === 1 ? 'Última hora' : `Últimas ${hours} horas`;
                 document.getElementById('chartTimeRange').textContent = rangeText;
                 
-                // FORZAR actualización completa de la gráfica con nuevo rango
-                const chart = AppState.chart.instance;
-                if (chart) {
-                    // Limpiar configuraciones previas del eje X
-                    chart.options.scales.x.min = undefined;
-                    chart.options.scales.x.max = undefined;
-                    
-                    // Actualizar inmediatamente con el nuevo rango
-                    this.updateChart();
-                    
-                    console.log(`🕐 Rango cambiado a ${hours}h, gráfica actualizada completamente`);
-                }
-            }
-
-            static forceUpdateChart() {
-                console.log('🔄 Forzando actualización completa de la gráfica...');
+                // Actualizar gráfica
                 this.updateChart();
-                UIManager.showAlert('🔄 Gráfica actualizada con todos los datos del rango seleccionado', 'success');
             }
 
             static showChart(type) {
@@ -1531,71 +1443,38 @@
                 const chart = AppState.chart.instance;
                 const history = AppState.data.history;
                 
-                if (!chart) {
-                    console.log('⚠️ Chart no inicializado');
-                    return;
-                }
+                if (!chart || !history.length) return;
+
+                // Filtrar por rango de tiempo
+                const now = new Date();
+                const timeLimit = new Date(now.getTime() - (AppState.chart.currentTimeRange * 60 * 60 * 1000));
                 
-                if (!history.length) {
-                    console.log('⚠️ No hay datos para mostrar');
-                    chart.data.labels = [];
-                    chart.data.datasets = [];
-                    chart.update('none');
-                    return;
-                }
+                const filteredData = history.filter(item => 
+                    new Date(item.timestamp) >= timeLimit
+                );
 
-                try {
-                    // SIMPLIFICADO: Obtener datos según rango temporal
-                    const now = new Date();
-                    const timeRangeMs = AppState.chart.currentTimeRange * 60 * 60 * 1000;
-                    const startTime = new Date(now.getTime() - timeRangeMs);
-                    
-                    let filteredData = history.filter(item => {
-                        const itemTime = new Date(item.timestamp);
-                        return itemTime >= startTime;
-                    });
+                if (!filteredData.length) return;
 
-                    // Si no hay datos en el rango, usar los últimos datos disponibles
-                    if (!filteredData.length && history.length > 0) {
-                        filteredData = history.slice(-20); // Últimos 20 puntos como fallback
-                        console.log('📊 Usando fallback: últimos 20 puntos');
-                    }
+                // Preparar labels
+                const labels = filteredData.map(item => 
+                    this.formatTime(new Date(item.timestamp))
+                );
 
-                    if (!filteredData.length) {
-                        console.log('❌ No hay datos para mostrar en el rango');
-                        return;
-                    }
+                // Configurar datasets según tipo
+                const { datasets, yAxisLabel } = this.getChartConfig(filteredData);
 
-                    // Preparar labels simples
-                    const labels = filteredData.map(item => {
-                        const date = new Date(item.timestamp);
-                        const hours = date.getHours().toString().padStart(2, '0');
-                        const minutes = date.getMinutes().toString().padStart(2, '0');
-                        return `${hours}:${minutes}`;
-                    });
+                // Actualizar gráfica
+                chart.data.labels = labels;
+                chart.data.datasets = datasets;
+                chart.options.scales.y.title = {
+                    display: true,
+                    text: yAxisLabel,
+                    color: '#fff'
+                };
+                chart.update('none');
 
-                    // Configurar datasets según tipo
-                    const { datasets, yAxisLabel } = this.getChartConfig(filteredData);
-
-                    // Actualizar gráfica de forma simple
-                    chart.data.labels = labels;
-                    chart.data.datasets = datasets;
-                    
-                    if (chart.options.scales.y.title) {
-                        chart.options.scales.y.title.text = yAxisLabel;
-                    }
-                    
-                    chart.update('none');
-
-                    // Actualizar info
-                    this.updateChartInfo(filteredData);
-                    
-                    console.log(`📊 Gráfica actualizada: ${filteredData.length} puntos (${AppState.chart.currentTimeRange}h)`);
-                    
-                } catch (error) {
-                    console.error('❌ Error actualizando gráfica:', error);
-                    UIManager.showAlert('Error actualizando gráfica: ' + error.message, 'error');
-                }
+                // Actualizar info
+                this.updateChartInfo(filteredData);
             }
 
             static getChartConfig(data) {
@@ -1740,28 +1619,13 @@
                 const hours = date.getHours().toString().padStart(2, '0');
                 const minutes = date.getMinutes().toString().padStart(2, '0');
                 
-                // Para 1 hora: mostrar HH:MM
-                if (AppState.chart.currentTimeRange === 1) {
-                    return `${hours}:${minutes}`;
-                }
-                // Para 6 horas: mostrar HH:MM pero saltear algunos
-                else if (AppState.chart.currentTimeRange === 6) {
-                    return `${hours}:${minutes}`;
-                }
-                // Para 12-24 horas: mostrar solo horas cuando los minutos son 00, sino HH:MM
-                else if (AppState.chart.currentTimeRange <= 24) {
-                    if (date.getMinutes() === 0 || date.getMinutes() % 30 === 0) {
-                        return `${hours}:${minutes}`;
-                    } else {
-                        return `${hours}:${minutes}`;
-                    }
-                }
-                // Para rangos mayores: incluir fecha
-                else {
+                if (AppState.chart.currentTimeRange > 24) {
                     const day = date.getDate().toString().padStart(2, '0');
                     const month = (date.getMonth() + 1).toString().padStart(2, '0');
                     return `${day}/${month} ${hours}:${minutes}`;
                 }
+                
+                return `${hours}:${minutes}`;
             }
 
             static updateChartInfo(data) {
@@ -1871,8 +1735,8 @@
                     Math.floor((new Date() - AppState.mqtt.connectTime) / 1000) : 0;
                 
                 const info = `
-🎓 SISTEMA MATE3 v2.2 SIMPLIFICADO
-═══════════════════════════════════
+🎓 SISTEMA MATE3 CON CALCULADORA PV KIOSOL
+═══════════════════════════════════════
 
 📊 Estadísticas del Sistema:
 • Versión: ${CONFIG.VERSION}
@@ -1880,21 +1744,17 @@
 • Tiempo online: ${DataManager.formatDuration(uptime)}
 • Mensajes MQTT: ${AppState.mqtt.messageCount}
 
-🧮 Calculadora PV KIOSOL Integrada:
-• Los valores de corriente y potencia PV son calculados
+🧮 Calculadora PV KIOSOL:
+• Los valores de corriente y potencia PV son calculados científicamente
 • Sistema: ${AppState.pvCalculator.P_max}W (${AppState.pvCalculator.numPaneles} paneles)
-• Algoritmos científicos compensan limitaciones del MATE3
-
-📥 Exportación de Datos:
-• CSV simple y funcional (método probado)
-• Sin complicaciones innecesarias
+• Irradiancia estimada desde voltaje del sistema
 
 🎯 Autor: Andrés Santiago Gómez Blanco
 🏛️ Universidad de los Andes
 🔬 Laboratorio Kiosol
 📅 Junio 2025
 
-✅ Sistema simplificado funcionando con datos PV precisos
+✅ Sistema funcionando correctamente con datos PV precisos
                 `;
                 
                 this.showAlert(info, 'success');
@@ -1905,7 +1765,7 @@
         // ===== GESTIÓN DE APLICACIÓN =====
         class AppManager {
             static init() {
-                console.log('🚀 Inicializando MATE3 Dashboard con Calculadora PV v2.1...');
+                console.log('🚀 Inicializando MATE3 Dashboard con Calculadora PV KIOSOL...');
                 
                 // Generar ID de cliente único
                 document.getElementById('mqttClientId').value = MQTTManager.generateClientId();
@@ -1927,10 +1787,10 @@
                 
                 // Mostrar mensaje de bienvenida
                 setTimeout(() => {
-                    UIManager.showAlert('🔧 MATE3 v2.2 SIMPLIFICADO: Vuelto a la función CSV simple que funcionaba + Calculadora PV integrada. ¡Debería descargar sin problemas!', 'success');
+                    UIManager.showAlert('🧮 MATE3 Dashboard con Calculadora PV KIOSOL integrada. Los valores de corriente y potencia solar son calculados científicamente. ¡El CSV funciona correctamente!', 'success');
                 }, 1000);
                 
-                console.log('✅ Dashboard con Calculadora PV integrada inicializado correctamente');
+                console.log('✅ Dashboard inicializado correctamente');
             }
 
             static getMqttConfig() {
