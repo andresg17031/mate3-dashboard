@@ -588,6 +588,7 @@
             <div class="control-group">
                 <button class="btn btn-secondary" onclick="DataManager.downloadCSV()">📥 CSV</button>
                 <button class="btn btn-secondary" onclick="DataManager.clearHistory()">🗑️ Limpiar</button>
+                <button class="btn btn-secondary" onclick="ChartManager.forceUpdateChart()">🔄 Actualizar Gráfica</button>
                 <button class="btn btn-secondary" onclick="UIManager.showSystemInfo()">📊 Info</button>
             </div>
         </div>
@@ -1206,22 +1207,20 @@
                     // Guardar en localStorage
                     this.saveToStorage();
                     
-                    // Actualizar gráfica solo si hay datos suficientes en el rango actual
-                    if (AppState.chart.instance) {
-                        const timeRangeMs = AppState.chart.currentTimeRange * 60 * 60 * 1000;
-                        const now = new Date();
-                        const startTime = new Date(now.getTime() - timeRangeMs);
-                        const dataInRange = AppState.data.history.filter(item => 
-                            new Date(item.timestamp) >= startTime
-                        );
-                        
-                        // Solo actualizar si tenemos datos suficientes para mostrar
-                        if (dataInRange.length > 0) {
-                            ChartManager.updateChart();
-                        }
+                    // Actualizar gráfica solo cada cierto número de nuevos datos para evitar "corrimiento"
+                    // o cuando hay cambios significativos
+                    const shouldUpdateChart = (
+                        AppState.data.history.length % 5 === 0 ||  // Cada 5 nuevos datos
+                        AppState.data.history.length < 10 ||       // Siempre actualizar al inicio
+                        Math.abs(pvPower - (AppState.data.lastPowerValue || 0)) > 10  // Cambio significativo en potencia
+                    );
+                    
+                    if (shouldUpdateChart && AppState.chart.instance) {
+                        ChartManager.updateChart();
+                        AppState.data.lastPowerValue = pvPower;  // Guardar para comparación
                     }
                     
-                    console.log(`✅ Datos agregados al historial: ${pvPower.toFixed(1)}W, ${pvCurrent.toFixed(2)}A, ${irradiance.toFixed(0)} W/m²`);
+                    console.log(`✅ Datos agregados al historial: ${pvPower.toFixed(1)}W, ${pvCurrent.toFixed(2)}A, ${irradiance.toFixed(0)} W/m² (Total: ${AppState.data.history.length})`);
                 }
             }
 
@@ -1501,8 +1500,24 @@
                 const rangeText = hours === 1 ? 'Última hora' : `Últimas ${hours} horas`;
                 document.getElementById('chartTimeRange').textContent = rangeText;
                 
-                // Actualizar gráfica
+                // FORZAR actualización completa de la gráfica con nuevo rango
+                const chart = AppState.chart.instance;
+                if (chart) {
+                    // Limpiar configuraciones previas del eje X
+                    chart.options.scales.x.min = undefined;
+                    chart.options.scales.x.max = undefined;
+                    
+                    // Actualizar inmediatamente con el nuevo rango
+                    this.updateChart();
+                    
+                    console.log(`🕐 Rango cambiado a ${hours}h, gráfica actualizada completamente`);
+                }
+            }
+
+            static forceUpdateChart() {
+                console.log('🔄 Forzando actualización completa de la gráfica...');
                 this.updateChart();
+                UIManager.showAlert('🔄 Gráfica actualizada con todos los datos del rango seleccionado', 'success');
             }
 
             static showChart(type) {
@@ -1724,17 +1739,24 @@
             static formatTime(date) {
                 const hours = date.getHours().toString().padStart(2, '0');
                 const minutes = date.getMinutes().toString().padStart(2, '0');
-                const seconds = date.getSeconds().toString().padStart(2, '0');
                 
-                // Para rangos cortos (1-6h), mostrar minutos y segundos
-                if (AppState.chart.currentTimeRange <= 6) {
+                // Para 1 hora: mostrar HH:MM
+                if (AppState.chart.currentTimeRange === 1) {
                     return `${hours}:${minutes}`;
                 }
-                // Para rangos largos (12-24h), mostrar solo horas
+                // Para 6 horas: mostrar HH:MM pero saltear algunos
+                else if (AppState.chart.currentTimeRange === 6) {
+                    return `${hours}:${minutes}`;
+                }
+                // Para 12-24 horas: mostrar solo horas cuando los minutos son 00, sino HH:MM
                 else if (AppState.chart.currentTimeRange <= 24) {
-                    return `${hours}:${minutes}`;
+                    if (date.getMinutes() === 0 || date.getMinutes() % 30 === 0) {
+                        return `${hours}:${minutes}`;
+                    } else {
+                        return `${hours}:${minutes}`;
+                    }
                 }
-                // Para rangos muy largos, incluir fecha
+                // Para rangos mayores: incluir fecha
                 else {
                     const day = date.getDate().toString().padStart(2, '0');
                     const month = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -1901,7 +1923,7 @@
                 
                 // Mostrar mensaje de bienvenida
                 setTimeout(() => {
-                    UIManager.showAlert('🧮 Sistema MATE3 v2.1 con Calculadora PV KIOSOL integrada. Gráficas con autoescalado temporal mejorado. Los valores de corriente y potencia solar son calculados científicamente. Presiona "Conectar HiveMQ" para iniciar.', 'success');
+                    UIManager.showAlert('🧮 Sistema MATE3 v2.1 mejorado: Calculadora PV integrada + Autoescalado temporal corregido. Las gráficas ahora muestran el rango temporal completo sin desplazarse. Usa el botón "🔄 Actualizar Gráfica" si necesitas refrescar la vista.', 'success');
                 }, 1000);
                 
                 console.log('✅ Dashboard con Calculadora PV integrada inicializado correctamente');
