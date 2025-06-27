@@ -117,11 +117,6 @@
             color: #000;
         }
 
-        .btn-info {
-            background: var(--info-color);
-            color: #fff;
-        }
-
         /* ===== BARRA DE ESTADO ===== */
         .status-bar {
             background: var(--glass-bg);
@@ -592,9 +587,6 @@
             </div>
             <div class="control-group">
                 <button class="btn btn-secondary" onclick="DataManager.downloadCSV()">📥 CSV</button>
-                <button class="btn btn-warning" onclick="DataManager.testDownload()">🧪 Test CSV</button>
-                <button class="btn btn-info" onclick="DataManager.showDataInConsole()">📋 Datos en Consola</button>
-                <button class="btn btn-secondary" onclick="DataManager.debugData()">🔍 Debug Datos</button>
                 <button class="btn btn-secondary" onclick="DataManager.clearHistory()">🗑️ Limpiar</button>
                 <button class="btn btn-secondary" onclick="ChartManager.forceUpdateChart()">🔄 Actualizar Gráfica</button>
                 <button class="btn btn-secondary" onclick="UIManager.showSystemInfo()">📊 Info</button>
@@ -1287,141 +1279,6 @@
                 UIManager.showAlert('📥 Archivo CSV con datos calculados descargado exitosamente', 'success');
             }
 
-            static showDataInConsole() {
-                console.log('📋 DATOS COMPLETOS PARA COPIA MANUAL:');
-                console.log('=====================================');
-                
-                if (!AppState.data.history.length) {
-                    console.log('❌ No hay datos disponibles');
-                    UIManager.showAlert('No hay datos para mostrar', 'warning');
-                    return;
-                }
-                
-                // Encabezado CSV
-                const header = 'Timestamp,Hora,Potencia(W),Corriente(A),Voltaje(V),SoC(%),Irradiancia(W/m²)';
-                console.log(header);
-                console.log('=====================================');
-                
-                // Datos
-                AppState.data.history.forEach((item, index) => {
-                    const date = new Date(item.timestamp);
-                    const timeStr = date.toLocaleString('es-CO');
-                    const power = parseFloat(item.power || 0).toFixed(1);
-                    const current = parseFloat(item.current_pv || 0).toFixed(2);
-                    const voltage = parseFloat(item.voltage_pv || 0).toFixed(1);
-                    const soc = parseInt(item.soc || 0);
-                    const irradiance = parseInt(item.irradiance || 0);
-                    
-                    const row = `"${item.timestamp}","${timeStr}",${power},${current},${voltage},${soc},${irradiance}`;
-                    console.log(row);
-                });
-                
-                console.log('=====================================');
-                console.log(`📊 Total: ${AppState.data.history.length} registros mostrados`);
-                console.log('💡 Tip: Usa Ctrl+A en la consola para seleccionar todo, luego Ctrl+C para copiar');
-                
-                UIManager.showAlert(
-                    `📋 ${AppState.data.history.length} registros mostrados en la consola del navegador. ` +
-                    `Abre DevTools (F12) → Consola para verlos y copiarlos manualmente.`, 
-                    'info'
-                );
-            }
-
-            static testDownload() {
-                console.log('🧪 TEST: Verificando capacidad de descarga del navegador');
-                
-                try {
-                    const testData = 'Prueba,Fecha,Navegador\n' + 
-                                   `"Test CSV","${new Date().toLocaleString()}","${navigator.userAgent.split(' ')[0]}"\n` +
-                                   `"Total datos","${AppState.data.history.length}","OK"`;
-                    
-                    console.log('📄 Datos de prueba:', testData);
-                    
-                    // Método más simple posible
-                    const link = document.createElement('a');
-                    link.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(testData);
-                    link.download = 'test_mate3.csv';
-                    
-                    console.log('🔗 Link de prueba creado');
-                    
-                    // Agregar al DOM, hacer click, remover
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    
-                    console.log('✅ Test de descarga ejecutado');
-                    UIManager.showAlert('🧪 Test CSV ejecutado. Si se descargó "test_mate3.csv", el navegador funciona correctamente.', 'info');
-                    
-                } catch (error) {
-                    console.error('❌ Test de descarga falló:', error);
-                    UIManager.showAlert('❌ Test falló: ' + error.message + '. Problema con el navegador.', 'error');
-                }
-            }
-
-            static debugData() {
-                console.log('🔍 DEBUG: Estado completo del sistema');
-                console.log('📊 Total datos en historial:', AppState.data.history.length);
-                console.log('🕐 Rango temporal actual:', AppState.chart.currentTimeRange, 'horas');
-                
-                // Información del navegador
-                console.log('🌐 Navegador:', navigator.userAgent);
-                console.log('📱 Plataforma:', navigator.platform);
-                
-                if (AppState.data.history.length > 0) {
-                    const lastItem = AppState.data.history[AppState.data.history.length - 1];
-                    console.log('📝 Último dato registrado:', lastItem);
-                    
-                    const firstItem = AppState.data.history[0];
-                    console.log('📝 Primer dato registrado:', firstItem);
-                    
-                    const timeSpan = new Date(lastItem.timestamp) - new Date(firstItem.timestamp);
-                    const timeSpanHours = timeSpan / (1000 * 60 * 60);
-                    console.log('⏱️ Rango temporal de datos:', timeSpanHours.toFixed(1), 'horas');
-                    
-                    // Verificar integridad de datos
-                    let validRecords = 0;
-                    let invalidRecords = 0;
-                    AppState.data.history.forEach(item => {
-                        if (item.timestamp && item.power !== undefined) {
-                            validRecords++;
-                        } else {
-                            invalidRecords++;
-                        }
-                    });
-                    console.log('✅ Registros válidos:', validRecords);
-                    console.log('❌ Registros inválidos:', invalidRecords);
-                    
-                    // Mostrar muestra de datos
-                    console.log('📋 Muestra de datos (últimos 3):');
-                    AppState.data.history.slice(-3).forEach((item, i) => {
-                        console.log(`  ${i+1}:`, {
-                            time: new Date(item.timestamp).toLocaleTimeString(),
-                            power: item.power,
-                            current_pv: item.current_pv,
-                            irradiance: item.irradiance,
-                            voltage_pv: item.voltage_pv
-                        });
-                    });
-                } else {
-                    console.log('❌ No hay datos en el historial');
-                }
-                
-                console.log('🔗 Estado MQTT:', {
-                    connected: AppState.mqtt.connected,
-                    messageCount: AppState.mqtt.messageCount
-                });
-                
-                console.log('🧮 Último análisis PV:', AppState.data.lastPVAnalysis);
-                
-                UIManager.showAlert(
-                    `🔍 Debug: ${AppState.data.history.length} registros en memoria. ` +
-                    `MQTT: ${AppState.mqtt.connected ? 'Conectado' : 'Desconectado'}. ` +
-                    `Última PV: ${AppState.data.lastPVAnalysis ? 'OK' : 'Sin datos'}. ` +
-                    `Ver consola para detalles completos.`, 
-                    'info'
-                );
-            }
-
             static updateSystemStats() {
                 // Actualizar contador de datos
                 document.getElementById('dataCount').textContent = AppState.data.history.length;
@@ -2014,7 +1871,7 @@
                     Math.floor((new Date() - AppState.mqtt.connectTime) / 1000) : 0;
                 
                 const info = `
-🎓 SISTEMA MATE3 v2.2 ULTRA-ROBUSTO
+🎓 SISTEMA MATE3 v2.2 SIMPLIFICADO
 ═══════════════════════════════════
 
 📊 Estadísticas del Sistema:
@@ -2028,18 +1885,16 @@
 • Sistema: ${AppState.pvCalculator.P_max}W (${AppState.pvCalculator.numPaneles} paneles)
 • Algoritmos científicos compensan limitaciones del MATE3
 
-📥 Exportación de Datos (ROBUSTO):
-• CSV Principal: Método estándar con validación completa
-• Test CSV: Verifica que el navegador pueda descargar
-• Datos en Consola: Fallback manual para copia
-• Triple protección contra fallos de descarga
+📥 Exportación de Datos:
+• CSV simple y funcional (método probado)
+• Sin complicaciones innecesarias
 
 🎯 Autor: Andrés Santiago Gómez Blanco
 🏛️ Universidad de los Andes
 🔬 Laboratorio Kiosol
 📅 Junio 2025
 
-✅ Sistema ultra-robusto funcionando con datos PV precisos
+✅ Sistema simplificado funcionando con datos PV precisos
                 `;
                 
                 this.showAlert(info, 'success');
@@ -2072,7 +1927,7 @@
                 
                 // Mostrar mensaje de bienvenida
                 setTimeout(() => {
-                    UIManager.showAlert('🔧 MATE3 v2.2 ULTRA-ROBUSTO: CSV con 3 métodos de descarga + Test CSV + Datos en consola como fallback. ¡Ya no puede fallar la exportación!', 'success');
+                    UIManager.showAlert('🔧 MATE3 v2.2 SIMPLIFICADO: Vuelto a la función CSV simple que funcionaba + Calculadora PV integrada. ¡Debería descargar sin problemas!', 'success');
                 }, 1000);
                 
                 console.log('✅ Dashboard con Calculadora PV integrada inicializado correctamente');
