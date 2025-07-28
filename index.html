@@ -14,6 +14,143 @@
             box-sizing: border-box;
         }
 
+        // ===== SISTEMA DE MONITOREO =====
+        class SystemMonitor {
+            static init() {
+                // Iniciar verificación periódica del sistema
+                AppState.monitoring.systemCheckInterval = setInterval(() => {
+                    this.checkSystemHealth();
+                }, 30000); // Verificar cada 30 segundos
+                
+                console.log('🔍 Sistema de monitoreo iniciado');
+            }
+
+            static checkSystemHealth() {
+                const now = new Date();
+                const lastMessage = AppState.data.lastMessageTime;
+                
+                if (AppState.mqtt.connected && lastMessage) {
+                    const timeSinceLastMessage = (now - lastMessage) / 1000; // segundos
+                    
+                    // Si no llegan datos por más de 2 minutos, considerar sistema caído
+                    if (timeSinceLastMessage > 120) {
+                        this.showSystemDownAlert(Math.floor(timeSinceLastMessage));
+                        AppState.data.systemActive = false;
+                    } 
+                    // Advertencia si no llegan datos por más de 1 minuto
+                    else if (timeSinceLastMessage > 60) {
+                        this.showNoDataWarning(Math.floor(timeSinceLastMessage));
+                    }
+                    // Sistema funcionando normalmente
+                    else {
+                        this.clearSystemAlerts();
+                        AppState.data.systemActive = true;
+                    }
+                } else if (AppState.mqtt.connected && !lastMessage) {
+                    // Conectado pero nunca ha llegado data
+                    this.showWaitingForDataAlert();
+                }
+                
+                // Actualizar indicador visual del estado del sistema
+                this.updateSystemStatusIndicator();
+            }
+
+            static resetDataTimeout() {
+                // Limpiar timeout anterior
+                if (AppState.monitoring.dataTimeoutId) {
+                    clearTimeout(AppState.monitoring.dataTimeoutId);
+                }
+                
+                // Establecer nuevo timeout para detectar falta de datos
+                AppState.monitoring.dataTimeoutId = setTimeout(() => {
+                    this.showNoDataWarning(60);
+                }, 60000); // 1 minuto sin datos
+                
+                // Limpiar alertas de sistema caído si llegan datos
+                this.clearSystemAlerts();
+            }
+
+            static showSystemDownAlert(secondsSinceLastData) {
+                const alertKey = 'system_down';
+                if (!AppState.monitoring.alertsShown.has(alertKey)) {
+                    const minutes = Math.floor(secondsSinceLastData / 60);
+                    UIManager.showAlert(
+                        `🔴 SISTEMA CAÍDO: Sin datos por ${minutes} minutos. El MATE3 o Raspberry Pi pueden estar desconectados.`, 
+                        'error'
+                    );
+                    AppState.monitoring.alertsShown.add(alertKey);
+                    
+                    // Actualizar estado de conexión
+                    UIManager.updateConnectionStatus('disconnected', `Sistema caído - ${minutes}m sin datos`);
+                }
+            }
+
+            static showNoDataWarning(secondsSinceLastData) {
+                const alertKey = 'no_data_warning';
+                if (!AppState.monitoring.alertsShown.has(alertKey)) {
+                    UIManager.showAlert(
+                        `⚠️ Sin datos por ${secondsSinceLastData} segundos. Verificando estado del sistema...`, 
+                        'warning'
+                    );
+                    AppState.monitoring.alertsShown.add(alertKey);
+                }
+            }
+
+            static showWaitingForDataAlert() {
+                const alertKey = 'waiting_data';
+                if (!AppState.monitoring.alertsShown.has(alertKey)) {
+                    UIManager.showAlert(
+                        '⏳ Conectado a MQTT pero esperando datos del MATE3...', 
+                        'info'
+                    );
+                    AppState.monitoring.alertsShown.add(alertKey);
+                }
+            }
+
+            static clearSystemAlerts() {
+                // Limpiar alertas mostradas para que puedan volver a aparecer
+                AppState.monitoring.alertsShown.delete('system_down');
+                AppState.monitoring.alertsShown.delete('no_data_warning');
+                AppState.monitoring.alertsShown.delete('waiting_data');
+            }
+
+            static updateSystemStatusIndicator() {
+                const statusEl = document.getElementById('systemStatus');
+                const now = new Date();
+                const lastMessage = AppState.data.lastMessageTime;
+                
+                if (!AppState.mqtt.connected) {
+                    statusEl.textContent = 'Desconectado';
+                    statusEl.className = 'metric-value critical';
+                } else if (!lastMessage) {
+                    statusEl.textContent = 'Esperando datos';
+                    statusEl.className = 'metric-value warning';
+                } else {
+                    const timeSinceLastMessage = (now - lastMessage) / 1000;
+                    
+                    if (timeSinceLastMessage > 120) {
+                        statusEl.textContent = 'Sistema caído';
+                        statusEl.className = 'metric-value critical';
+                    } else if (timeSinceLastMessage > 60) {
+                        statusEl.textContent = 'Sin datos recientes';
+                        statusEl.className = 'metric-value warning';
+                    } else {
+                        statusEl.textContent = 'Online';
+                        statusEl.className = 'metric-value';
+                    }
+                }
+            }
+
+            static cleanup() {
+                if (AppState.monitoring.systemCheckInterval) {
+                    clearInterval(AppState.monitoring.systemCheckInterval);
+                }
+                if (AppState.monitoring.dataTimeoutId) {
+                    clearTimeout(AppState.monitoring.dataTimeoutId);
+                }
+            }
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
@@ -823,7 +960,14 @@
             },
             data: {
                 history: [],
-                lastReceived: null
+                lastReceived: null,
+                lastMessageTime: null,
+                systemActive: false
+            },
+            monitoring: {
+                dataTimeoutId: null,
+                systemCheckInterval: null,
+                alertsShown: new Set()
             }
         };
 
@@ -911,10 +1055,16 @@
             static handleMessage(topic, message) {
                 try {
                     AppState.mqtt.messageCount++;
+                    AppState.data.lastMessageTime = new Date();
+                    AppState.data.systemActive = true;
+                    
                     document.getElementById('mqttMessages').textContent = AppState.mqtt.messageCount;
                     
                     const data = JSON.parse(message.toString());
                     console.log('📨 Mensaje recibido:', topic, data);
+                    
+                    // Reiniciar timeout de monitoreo
+                    SystemMonitor.resetDataTimeout();
                     
                     // Procesar datos según el tópico
                     if (topic.endsWith('/all')) {
