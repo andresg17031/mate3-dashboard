@@ -17,55 +17,75 @@
         // ===== SISTEMA DE MONITOREO =====
         class SystemMonitor {
             static init() {
-                // Verificar inmediatamente al iniciar
+                // Verificar inmediatamente y frecuentemente al inicio
                 setTimeout(() => {
+                    console.log('🔍 Primera verificación del sistema...');
                     this.checkSystemHealth();
-                }, 5000); // Primera verificación a los 5 segundos
+                }, 3000); // Primera verificación a los 3 segundos
                 
-                // Luego verificar cada 15 segundos (más frecuente)
+                setTimeout(() => {
+                    console.log('🔍 Segunda verificación del sistema...');
+                    this.checkSystemHealth();
+                }, 15000); // Segunda verificación a los 15 segundos
+                
+                setTimeout(() => {
+                    console.log('🔍 Tercera verificación del sistema...');
+                    this.checkSystemHealth();
+                }, 45000); // Tercera verificación a los 45 segundos
+                
+                // Luego verificar cada 10 segundos permanentemente
                 AppState.monitoring.systemCheckInterval = setInterval(() => {
                     this.checkSystemHealth();
-                }, 15000);
+                }, 10000); // Cada 10 segundos
                 
-                console.log('🔍 Sistema de monitoreo iniciado - verificación cada 15s');
+                console.log('🔍 Sistema de monitoreo AGRESIVO iniciado - verificaciones: 3s, 15s, 45s, luego cada 10s');
             }
 
             static checkSystemHealth() {
                 const now = new Date();
                 const lastMessage = AppState.data.lastMessageTime;
                 const isConnected = AppState.mqtt.connected;
+                const timeSinceConnect = AppState.mqtt.connectTime ? 
+                    Math.floor((now - AppState.mqtt.connectTime) / 1000) : 0;
                 
-                console.log(`🔍 Verificando salud del sistema:`, {
-                    conectado: isConnected,
-                    ultimoMensaje: lastMessage ? lastMessage.toLocaleTimeString('es-CO') : 'Nunca',
-                    mensajesTotales: AppState.mqtt.messageCount
+                console.log(`🔍 VERIFICACIÓN SISTEMA:`, {
+                    conectadoMQTT: isConnected,
+                    tiempoConectado: timeSinceConnect + 's',
+                    ultimoMensaje: lastMessage ? lastMessage.toLocaleTimeString('es-CO') : 'NUNCA',
+                    mensajesTotales: AppState.mqtt.messageCount,
+                    sistemaActivo: AppState.data.systemActive
                 });
                 
                 if (isConnected) {
                     if (!lastMessage) {
-                        // Conectado pero nunca ha llegado data
-                        const timeSinceConnect = AppState.mqtt.connectTime ? 
-                            (now - AppState.mqtt.connectTime) / 1000 : 0;
-                        
-                        if (timeSinceConnect > 30) { // Después de 30 segundos sin datos
+                        // Conectado pero NUNCA ha llegado data
+                        if (timeSinceConnect > 180) { // 3 minutos sin datos = CRÍTICO
+                            console.log('🔴 SISTEMA CAÍDO - 3+ minutos sin datos');
+                            this.showSystemDownAlert(timeSinceConnect);
+                            AppState.data.systemActive = false;
+                        } else if (timeSinceConnect > 60) { // 1 minuto sin datos = WARNING
+                            console.log('⚠️ WARNING - 1+ minuto sin datos');
+                            this.showNoDataWarning(timeSinceConnect);
+                            AppState.data.systemActive = false;
+                        } else if (timeSinceConnect > 20) { // 20 segundos sin datos = INFO
+                            console.log('⏳ INFO - Esperando datos');
                             this.showWaitingForDataAlert();
                             AppState.data.systemActive = false;
                         }
                     } else {
-                        const timeSinceLastMessage = (now - lastMessage) / 1000;
+                        // Ya había datos antes, verificar cuánto tiempo hace
+                        const timeSinceLastMessage = Math.floor((now - lastMessage) / 1000);
                         
-                        // Sistema caído si no llegan datos por más de 90 segundos (1.5 min)
-                        if (timeSinceLastMessage > 90) {
-                            this.showSystemDownAlert(Math.floor(timeSinceLastMessage));
+                        if (timeSinceLastMessage > 180) { // 3 minutos = CRÍTICO
+                            console.log('🔴 SISTEMA CAÍDO - datos perdidos');
+                            this.showSystemDownAlert(timeSinceLastMessage);
                             AppState.data.systemActive = false;
-                        } 
-                        // Advertencia si no llegan datos por más de 45 segundos
-                        else if (timeSinceLastMessage > 45) {
-                            this.showNoDataWarning(Math.floor(timeSinceLastMessage));
+                        } else if (timeSinceLastMessage > 60) { // 1 minuto = WARNING
+                            console.log('⚠️ WARNING - datos antiguos');
+                            this.showNoDataWarning(timeSinceLastMessage);
                             AppState.data.systemActive = false;
-                        }
-                        // Sistema funcionando normalmente
-                        else {
+                        } else {
+                            // Sistema funcionando normalmente
                             this.clearSystemAlerts();
                             AppState.data.systemActive = true;
                         }
@@ -96,46 +116,41 @@
             }
 
             static showSystemDownAlert(secondsSinceLastData) {
-                const alertKey = 'system_down';
                 const minutes = Math.floor(secondsSinceLastData / 60);
                 
-                console.log(`🔴 SISTEMA CAÍDO: ${minutes} minutos sin datos`);
+                console.log(`🔴 MOSTRANDO ALERTA CRÍTICA: ${minutes} minutos sin datos`);
                 
                 UIManager.showAlert(
-                    `🔴 SISTEMA CAÍDO: Sin datos por ${minutes} minutos. El MATE3 o Raspberry Pi están desconectados.`, 
-                    'error'
+                    `🔴 SISTEMA KIOSOL CAÍDO: ${minutes} minutos sin datos. Verificar MATE3 y Raspberry Pi.`, 
+                    'error'  // CRÍTICO - ROJO
                 );
                 
-                // Actualizar estado de conexión
-                UIManager.updateConnectionStatus('disconnected', `Sistema caído - ${minutes}m sin datos`);
-                
-                // No usar alertsShown para que se repita la alerta
+                UIManager.updateConnectionStatus('disconnected', `🔴 Sistema caído - ${minutes}m`);
             }
 
             static showNoDataWarning(secondsSinceLastData) {
-                const alertKey = 'no_data_warning';
+                const minutes = Math.floor(secondsSinceLastData / 60);
+                const seconds = secondsSinceLastData % 60;
                 
-                console.log(`⚠️ ADVERTENCIA: ${secondsSinceLastData} segundos sin datos`);
+                console.log(`⚠️ MOSTRANDO ADVERTENCIA: ${secondsSinceLastData} segundos sin datos`);
                 
                 UIManager.showAlert(
-                    `⚠️ SISTEMA SIN DATOS: ${secondsSinceLastData} segundos sin recibir información del MATE3`, 
-                    'warning'
+                    `⚠️ PROBLEMA EN KIOSOL: ${minutes}m ${seconds}s sin datos del MATE3. Sistema posiblemente caído.`, 
+                    'warning'  // ADVERTENCIA - AMARILLO
                 );
                 
-                UIManager.updateConnectionStatus('connecting', `Sin datos - ${secondsSinceLastData}s`);
+                UIManager.updateConnectionStatus('connecting', `⚠️ Sin datos - ${minutes}m ${seconds}s`);
             }
 
             static showWaitingForDataAlert() {
-                const alertKey = 'waiting_data';
-                
-                console.log('⏳ Esperando datos del MATE3...');
+                console.log('⏳ MOSTRANDO INFO: Esperando datos del MATE3');
                 
                 UIManager.showAlert(
-                    '⏳ MQTT conectado pero SIN DATOS del MATE3. Verifica que el sistema Kiosol esté funcionando.', 
-                    'warning'
+                    '⏳ MQTT conectado correctamente pero esperando datos del MATE3/Kiosol...', 
+                    'info'  // INFORMACIÓN - AZUL
                 );
                 
-                UIManager.updateConnectionStatus('connecting', 'Sin datos del MATE3');
+                UIManager.updateConnectionStatus('connecting', '⏳ Esperando datos MATE3');
             }
 
             static clearSystemAlerts() {
@@ -151,25 +166,41 @@
                 const lastMessage = AppState.data.lastMessageTime;
                 
                 if (!AppState.mqtt.connected) {
-                    statusEl.textContent = 'Desconectado';
+                    statusEl.textContent = 'Desconectado MQTT';
                     statusEl.className = 'metric-value critical';
                 } else if (!lastMessage) {
-                    statusEl.textContent = 'Esperando datos';
-                    statusEl.className = 'metric-value warning';
-                } else {
-                    const timeSinceLastMessage = (now - lastMessage) / 1000;
+                    const timeSinceConnect = AppState.mqtt.connectTime ? 
+                        Math.floor((now - AppState.mqtt.connectTime) / 1000) : 0;
                     
-                    if (timeSinceLastMessage > 120) {
-                        statusEl.textContent = 'Sistema caído';
+                    if (timeSinceConnect > 180) {
+                        statusEl.textContent = `🔴 SIN DATOS (${Math.floor(timeSinceConnect/60)}m)`;
                         statusEl.className = 'metric-value critical';
-                    } else if (timeSinceLastMessage > 60) {
-                        statusEl.textContent = 'Sin datos recientes';
+                    } else if (timeSinceConnect > 60) {
+                        statusEl.textContent = `⚠️ Sin datos (${Math.floor(timeSinceConnect/60)}m)`;
                         statusEl.className = 'metric-value warning';
                     } else {
-                        statusEl.textContent = 'Online';
+                        statusEl.textContent = '⏳ Esperando datos';
+                        statusEl.className = 'metric-value warning';
+                    }
+                } else {
+                    const timeSinceLastMessage = Math.floor((now - lastMessage) / 1000);
+                    
+                    if (timeSinceLastMessage > 180) {
+                        statusEl.textContent = `🔴 SISTEMA CAÍDO (${Math.floor(timeSinceLastMessage/60)}m)`;
+                        statusEl.className = 'metric-value critical';
+                    } else if (timeSinceLastMessage > 60) {
+                        statusEl.textContent = `⚠️ Sin datos (${Math.floor(timeSinceLastMessage/60)}m)`;
+                        statusEl.className = 'metric-value warning';
+                    } else {
+                        statusEl.textContent = '✅ Online';
                         statusEl.className = 'metric-value';
                     }
                 }
+            }
+
+            static forceCheck() {
+                console.log('🔍 VERIFICACIÓN MANUAL FORZADA');
+                this.checkSystemHealth();
             }
 
             static cleanup() {
@@ -973,7 +1004,7 @@
                     CONFIG: 'mate3MqttConfig'
                 }
             },
-            VERSION: '2.1.1-monitor'
+            VERSION: '2.3.0-aggressive-monitoring'
         };
 
         // ===== ESTADO GLOBAL =====
@@ -1044,6 +1075,11 @@
                     
                     this.subscribeToTopics();
                     UIManager.toggleButtons(true);
+                    
+                    // Iniciar monitoreo inmediato después de conectar
+                    setTimeout(() => {
+                        SystemMonitor.checkSystemHealth();
+                    }, 10000); // Verificar a los 10 segundos si no llegan datos
                 });
 
                 client.on('error', (error) => {
@@ -1732,14 +1768,24 @@
                 const alertBox = document.getElementById('alertBox');
                 const alertMessage = document.getElementById('alertMessage');
                 
+                console.log(`📢 Mostrando alerta (${type}): ${message}`);
+                
                 alertBox.className = `alert show ${type}`;
                 alertMessage.textContent = message;
                 
-                setTimeout(() => {
-                    alertBox.classList.remove('show');
-                }, 5000);
+                // Alertas mucho más largas y visibles
+                const duration = type === 'error' ? 30000 : (type === 'warning' ? 20000 : 15000);
                 
-                console.log(`📢 Alerta: ${message}`);
+                // Limpiar timeout anterior si existe
+                if (this.alertTimeout) {
+                    clearTimeout(this.alertTimeout);
+                }
+                
+                this.alertTimeout = setTimeout(() => {
+                    alertBox.classList.remove('show');
+                }, duration);
+                
+                console.log(`📢 Alerta (${type}): ${message} - Duración: ${duration/1000}s`);
             }
 
             static toggleButtons(connected) {
@@ -1756,12 +1802,19 @@
             }
 
             static showSystemInfo() {
+                // Forzar verificación antes de mostrar info
+                SystemMonitor.forceCheck();
+                
                 const uptime = AppState.mqtt.connectTime ? 
                     Math.floor((new Date() - AppState.mqtt.connectTime) / 1000) : 0;
                     
                 const lastMessage = AppState.data.lastMessageTime;
                 const timeSinceLastData = lastMessage ? 
-                    Math.floor((new Date() - lastMessage) / 1000) : 'N/A';
+                    Math.floor((new Date() - lastMessage) / 1000) : uptime;
+                
+                const statusText = AppState.data.systemActive ? 
+                    '✅ Sistema funcionando correctamente' : 
+                    '🔴 SISTEMA KIOSOL CAÍDO - No llegan datos';
                 
                 const info = `
 🎓 SISTEMA MATE3 CON MONITOREO AUTOMÁTICO
@@ -1775,19 +1828,21 @@
 
 🔍 Estado del Monitoreo:
 • Sistema activo: ${AppState.data.systemActive ? 'Sí' : 'No'}
-• Últimos datos: hace ${timeSinceLastData} segundos
+• Tiempo sin datos: ${timeSinceLastData} segundos
 • Alertas automáticas: Activadas
-• Verificación cada: 30 segundos
+• Verificación cada: 10 segundos
+• Conectado a MQTT: ${AppState.mqtt.connected ? 'Sí' : 'No'}
 
 🎯 Autor: Andrés Santiago Gómez Blanco
 🏛️ Universidad de los Andes
 🔬 Laboratorio Kiosol
 📅 Junio 2025
 
-${AppState.data.systemActive ? '✅ Sistema funcionando correctamente' : '⚠️ Sistema sin datos recientes'}
+${statusText}
                 `;
                 
-                this.showAlert(info, AppState.data.systemActive ? 'success' : 'warning');
+                const alertType = AppState.data.systemActive ? 'success' : 'error';
+                this.showAlert(info, alertType);
                 console.log(info);
             }
         }
