@@ -17,38 +17,63 @@
         // ===== SISTEMA DE MONITOREO =====
         class SystemMonitor {
             static init() {
-                // Iniciar verificación periódica del sistema
+                // Verificar inmediatamente al iniciar
+                setTimeout(() => {
+                    this.checkSystemHealth();
+                }, 5000); // Primera verificación a los 5 segundos
+                
+                // Luego verificar cada 15 segundos (más frecuente)
                 AppState.monitoring.systemCheckInterval = setInterval(() => {
                     this.checkSystemHealth();
-                }, 30000); // Verificar cada 30 segundos
+                }, 15000);
                 
-                console.log('🔍 Sistema de monitoreo iniciado');
+                console.log('🔍 Sistema de monitoreo iniciado - verificación cada 15s');
             }
 
             static checkSystemHealth() {
                 const now = new Date();
                 const lastMessage = AppState.data.lastMessageTime;
+                const isConnected = AppState.mqtt.connected;
                 
-                if (AppState.mqtt.connected && lastMessage) {
-                    const timeSinceLastMessage = (now - lastMessage) / 1000; // segundos
-                    
-                    // Si no llegan datos por más de 2 minutos, considerar sistema caído
-                    if (timeSinceLastMessage > 120) {
-                        this.showSystemDownAlert(Math.floor(timeSinceLastMessage));
-                        AppState.data.systemActive = false;
-                    } 
-                    // Advertencia si no llegan datos por más de 1 minuto
-                    else if (timeSinceLastMessage > 60) {
-                        this.showNoDataWarning(Math.floor(timeSinceLastMessage));
+                console.log(`🔍 Verificando salud del sistema:`, {
+                    conectado: isConnected,
+                    ultimoMensaje: lastMessage ? lastMessage.toLocaleTimeString('es-CO') : 'Nunca',
+                    mensajesTotales: AppState.mqtt.messageCount
+                });
+                
+                if (isConnected) {
+                    if (!lastMessage) {
+                        // Conectado pero nunca ha llegado data
+                        const timeSinceConnect = AppState.mqtt.connectTime ? 
+                            (now - AppState.mqtt.connectTime) / 1000 : 0;
+                        
+                        if (timeSinceConnect > 30) { // Después de 30 segundos sin datos
+                            this.showWaitingForDataAlert();
+                            AppState.data.systemActive = false;
+                        }
+                    } else {
+                        const timeSinceLastMessage = (now - lastMessage) / 1000;
+                        
+                        // Sistema caído si no llegan datos por más de 90 segundos (1.5 min)
+                        if (timeSinceLastMessage > 90) {
+                            this.showSystemDownAlert(Math.floor(timeSinceLastMessage));
+                            AppState.data.systemActive = false;
+                        } 
+                        // Advertencia si no llegan datos por más de 45 segundos
+                        else if (timeSinceLastMessage > 45) {
+                            this.showNoDataWarning(Math.floor(timeSinceLastMessage));
+                            AppState.data.systemActive = false;
+                        }
+                        // Sistema funcionando normalmente
+                        else {
+                            this.clearSystemAlerts();
+                            AppState.data.systemActive = true;
+                        }
                     }
-                    // Sistema funcionando normalmente
-                    else {
-                        this.clearSystemAlerts();
-                        AppState.data.systemActive = true;
-                    }
-                } else if (AppState.mqtt.connected && !lastMessage) {
-                    // Conectado pero nunca ha llegado data
-                    this.showWaitingForDataAlert();
+                } else {
+                    // No conectado a MQTT
+                    AppState.data.systemActive = false;
+                    this.clearSystemAlerts();
                 }
                 
                 // Actualizar indicador visual del estado del sistema
@@ -72,39 +97,45 @@
 
             static showSystemDownAlert(secondsSinceLastData) {
                 const alertKey = 'system_down';
-                if (!AppState.monitoring.alertsShown.has(alertKey)) {
-                    const minutes = Math.floor(secondsSinceLastData / 60);
-                    UIManager.showAlert(
-                        `🔴 SISTEMA CAÍDO: Sin datos por ${minutes} minutos. El MATE3 o Raspberry Pi pueden estar desconectados.`, 
-                        'error'
-                    );
-                    AppState.monitoring.alertsShown.add(alertKey);
-                    
-                    // Actualizar estado de conexión
-                    UIManager.updateConnectionStatus('disconnected', `Sistema caído - ${minutes}m sin datos`);
-                }
+                const minutes = Math.floor(secondsSinceLastData / 60);
+                
+                console.log(`🔴 SISTEMA CAÍDO: ${minutes} minutos sin datos`);
+                
+                UIManager.showAlert(
+                    `🔴 SISTEMA CAÍDO: Sin datos por ${minutes} minutos. El MATE3 o Raspberry Pi están desconectados.`, 
+                    'error'
+                );
+                
+                // Actualizar estado de conexión
+                UIManager.updateConnectionStatus('disconnected', `Sistema caído - ${minutes}m sin datos`);
+                
+                // No usar alertsShown para que se repita la alerta
             }
 
             static showNoDataWarning(secondsSinceLastData) {
                 const alertKey = 'no_data_warning';
-                if (!AppState.monitoring.alertsShown.has(alertKey)) {
-                    UIManager.showAlert(
-                        `⚠️ Sin datos por ${secondsSinceLastData} segundos. Verificando estado del sistema...`, 
-                        'warning'
-                    );
-                    AppState.monitoring.alertsShown.add(alertKey);
-                }
+                
+                console.log(`⚠️ ADVERTENCIA: ${secondsSinceLastData} segundos sin datos`);
+                
+                UIManager.showAlert(
+                    `⚠️ SISTEMA SIN DATOS: ${secondsSinceLastData} segundos sin recibir información del MATE3`, 
+                    'warning'
+                );
+                
+                UIManager.updateConnectionStatus('connecting', `Sin datos - ${secondsSinceLastData}s`);
             }
 
             static showWaitingForDataAlert() {
                 const alertKey = 'waiting_data';
-                if (!AppState.monitoring.alertsShown.has(alertKey)) {
-                    UIManager.showAlert(
-                        '⏳ Conectado a MQTT pero esperando datos del MATE3...', 
-                        'info'
-                    );
-                    AppState.monitoring.alertsShown.add(alertKey);
-                }
+                
+                console.log('⏳ Esperando datos del MATE3...');
+                
+                UIManager.showAlert(
+                    '⏳ MQTT conectado pero SIN DATOS del MATE3. Verifica que el sistema Kiosol esté funcionando.', 
+                    'warning'
+                );
+                
+                UIManager.updateConnectionStatus('connecting', 'Sin datos del MATE3');
             }
 
             static clearSystemAlerts() {
@@ -942,7 +973,7 @@
                     CONFIG: 'mate3MqttConfig'
                 }
             },
-            VERSION: '2.1.0'
+            VERSION: '2.1.1-monitor'
         };
 
         // ===== ESTADO GLOBAL =====
@@ -1092,8 +1123,18 @@
 
             static handleDisconnection() {
                 AppState.mqtt.connected = false;
+                AppState.data.systemActive = false;
+                AppState.data.lastMessageTime = null;
+                
+                // Limpiar timeouts del monitoreo
+                if (AppState.monitoring.dataTimeoutId) {
+                    clearTimeout(AppState.monitoring.dataTimeoutId);
+                    AppState.monitoring.dataTimeoutId = null;
+                }
+                
                 UIManager.updateConnectionStatus('disconnected', 'Desconectado');
                 UIManager.toggleButtons(false);
+                SystemMonitor.updateSystemStatusIndicator();
             }
         }
 
@@ -1717,10 +1758,14 @@
             static showSystemInfo() {
                 const uptime = AppState.mqtt.connectTime ? 
                     Math.floor((new Date() - AppState.mqtt.connectTime) / 1000) : 0;
+                    
+                const lastMessage = AppState.data.lastMessageTime;
+                const timeSinceLastData = lastMessage ? 
+                    Math.floor((new Date() - lastMessage) / 1000) : 'N/A';
                 
                 const info = `
-🎓 SISTEMA MATE3 - LIMPIO
-═══════════════════════
+🎓 SISTEMA MATE3 CON MONITOREO AUTOMÁTICO
+═══════════════════════════════════════
 
 📊 Estadísticas del Sistema:
 • Versión: ${CONFIG.VERSION}
@@ -1728,15 +1773,21 @@
 • Tiempo online: ${DataManager.formatDuration(uptime)}
 • Mensajes MQTT: ${AppState.mqtt.messageCount}
 
+🔍 Estado del Monitoreo:
+• Sistema activo: ${AppState.data.systemActive ? 'Sí' : 'No'}
+• Últimos datos: hace ${timeSinceLastData} segundos
+• Alertas automáticas: Activadas
+• Verificación cada: 30 segundos
+
 🎯 Autor: Andrés Santiago Gómez Blanco
 🏛️ Universidad de los Andes
 🔬 Laboratorio Kiosol
 📅 Junio 2025
 
-✅ Sistema funcionando correctamente
+${AppState.data.systemActive ? '✅ Sistema funcionando correctamente' : '⚠️ Sistema sin datos recientes'}
                 `;
                 
-                this.showAlert(info, 'success');
+                this.showAlert(info, AppState.data.systemActive ? 'success' : 'warning');
                 console.log(info);
             }
         }
@@ -1752,16 +1803,17 @@
                 ChartManager.init();
                 DataManager.loadFromStorage();
                 DataManager.updateSystemStats();
+                SystemMonitor.init(); // Iniciar sistema de monitoreo
                 
                 if (AppState.data.history.length > 0) {
                     ChartManager.updateChart();
                 }
                 
                 setTimeout(() => {
-                    UIManager.showAlert('✅ MATE3 Dashboard cargado correctamente', 'success');
+                    UIManager.showAlert('✅ MATE3 Dashboard cargado con monitoreo automático de sistema', 'success');
                 }, 1000);
                 
-                console.log('✅ Dashboard inicializado correctamente');
+                console.log('✅ Dashboard inicializado correctamente con monitoreo de sistema');
             }
 
             static getMqttConfig() {
@@ -1814,6 +1866,7 @@
             if (AppState.mqtt.client && AppState.mqtt.connected) {
                 AppState.mqtt.client.end();
             }
+            SystemMonitor.cleanup(); // Limpiar sistema de monitoreo
         });
     </script>
 </body>
