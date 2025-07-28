@@ -522,7 +522,7 @@
         <!-- ===== HEADER ===== -->
         <header>
             <h1>🌞 MATE3 Solar Monitor</h1>
-            <p class="subtitle">Sistema de Monitoreo Fotovoltaico con Calculadora PV KIOSOL</p>
+            <p class="subtitle">Sistema de Monitoreo Fotovoltaico</p>
             <div class="project-info">
                 <strong>🎓 Proyecto de Tesis - Universidad de los Andes</strong><br>
                 <strong>Autor:</strong> Andrés Santiago Gómez Blanco | 
@@ -606,7 +606,7 @@
             <span id="alertMessage"></span>
         </div>
 
-        <!-- ===== TARJETAS DE MÉTRICAS (5 COMPLETAS) ===== -->
+        <!-- ===== TARJETAS DE MÉTRICAS ===== -->
         <div class="grid">
             <!-- 1. Inversor -->
             <div class="card">
@@ -651,10 +651,6 @@
                 <div class="metric">
                     <span class="metric-label">Potencia Solar</span>
                     <span class="metric-value" id="pvPower" style="color: #ffd700;">-- W</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Irradiancia Estimada</span>
-                    <span class="metric-value" id="irradianceEstimated" style="color: #ff8800;">-- W/m²</span>
                 </div>
                 <div class="metric">
                     <span class="metric-label">Corriente Salida</span>
@@ -753,12 +749,11 @@
             </div>
         </div>
 
-        <!-- ===== GRÁFICAS (8 TIPOS COMPLETOS) ===== -->
+        <!-- ===== GRÁFICAS ===== -->
         <div class="chart-container">
             <h2>📊 Gráficas del Sistema - <span id="chartTimeRange">Últimas 24 horas</span></h2>
             <div class="chart-selector">
                 <button class="chart-btn active" onclick="ChartManager.showChart('power')">⚡ Potencia Solar</button>
-                <button class="chart-btn" onclick="ChartManager.showChart('irradiance')">☀️ Irradiancia</button>
                 <button class="chart-btn" onclick="ChartManager.showChart('soc')">🔋 Estado de Carga</button>
                 <button class="chart-btn" onclick="ChartManager.showChart('voltage')">📊 Voltajes Sistema</button>
                 <button class="chart-btn" onclick="ChartManager.showChart('voltage_pv')">☀️ Voltaje PV</button>
@@ -791,7 +786,6 @@
             CHART: {
                 COLORS: {
                     power: '#ffd700',
-                    irradiance: '#ff8800',
                     soc: '#00ff88',
                     voltage_system: '#00aaff',
                     voltage_pv: '#ff8800',
@@ -811,106 +805,8 @@
                     CONFIG: 'mate3MqttConfig'
                 }
             },
-            VERSION: '2.0.1'
+            VERSION: '2.1.0'
         };
-
-        // ===== CALCULADORA PV KIOSOL =====
-        class KiosolPVCalculator {
-            constructor() {
-                // Parámetros del SISTEMA KIOSOL (6 paneles en serie)
-                this.numPaneles = 6;
-                this.V_oc_sistema = 170.0;      // Voltaje circuito abierto sistema (V)
-                this.V_mpp_sistema = 140.0;     // Voltaje máxima potencia sistema (V)
-                this.I_sc = 8.0;                // Corriente cortocircuito (A)
-                this.I_mpp = 7.5;               // Corriente máxima potencia (A)
-                this.P_max = 1050.0;            // Potencia máxima sistema (W)
-                
-                // Coeficientes de temperatura
-                this.temp_coef_V = -0.31;  // %/°C para voltaje
-                this.temp_coef_I = 0.05;   // %/°C para corriente
-                
-                // Condiciones estándar de prueba
-                this.STC_irradiance = 1000;  // W/m²
-                this.STC_temp = 25.0;        // °C
-            }
-            
-            estimarIrradianciaDesdVoltaje(V_pv_sistema, temperatura = 25.0) {
-                try {
-                    // Compensar temperatura en voltaje del sistema
-                    const V_corregido = V_pv_sistema / (1 + this.temp_coef_V/100 * (temperatura - this.STC_temp));
-                    
-                    if (V_corregido <= 0) return 0;
-                    
-                    // Modelo simplificado: relación V vs irradiancia
-                    let irradiancia;
-                    if (V_corregido >= this.V_oc_sistema * 0.95) {
-                        irradiancia = this.STC_irradiance;
-                    } else {
-                        const ratio = V_corregido / this.V_oc_sistema;
-                        if (ratio > 0.7) {
-                            const k = 0.1;  // Factor de ajuste
-                            irradiancia = this.STC_irradiance * Math.exp((ratio - 1) / k);
-                        } else {
-                            irradiancia = this.STC_irradiance * (ratio / 0.7) * 0.1;
-                        }
-                    }
-                    
-                    return Math.max(0, Math.min(irradiancia, 1200));  // Limitar a rango realista
-                } catch (e) {
-                    return 0;
-                }
-            }
-            
-            calcularCorrientePV(V_pv_sistema, temperatura = 25.0, irradiancia = null) {
-                try {
-                    if (irradiancia === null) {
-                        irradiancia = this.estimarIrradianciaDesdVoltaje(V_pv_sistema, temperatura);
-                    }
-                    
-                    if (irradiancia <= 10) return 0;  // Muy poca luz
-                    
-                    // Factor de irradiancia
-                    const G_factor = irradiancia / this.STC_irradiance;
-                    
-                    // Corriente base ajustada por irradiancia
-                    const I_base = this.I_sc * G_factor;
-                    
-                    // Compensación por temperatura
-                    const I_temp_ajustada = I_base * (1 + this.temp_coef_I/100 * (temperatura - this.STC_temp));
-                    
-                    // Modelo simplificado de curva I-V del sistema
-                    let I_pv;
-                    if (V_pv_sistema <= this.V_mpp_sistema) {
-                        // Región de corriente casi constante
-                        I_pv = I_temp_ajustada * (0.9 + 0.1 * V_pv_sistema / this.V_mpp_sistema);
-                    } else {
-                        // Región de caída de corriente
-                        const factor_caida = Math.exp(-(V_pv_sistema - this.V_mpp_sistema) / (this.V_oc_sistema - this.V_mpp_sistema) * 3);
-                        I_pv = I_temp_ajustada * factor_caida;
-                    }
-                    
-                    return Math.max(0, I_pv);
-                } catch (e) {
-                    return 0;
-                }
-            }
-            
-            analisisCompleto(V_pv_sistema, temperatura = 25.0) {
-                try {
-                    const irradiancia = this.estimarIrradianciaDesdVoltaje(V_pv_sistema, temperatura);
-                    const I_pv = this.calcularCorrientePV(V_pv_sistema, temperatura, irradiancia);
-                    const P_pv = V_pv_sistema * I_pv;
-                    
-                    return {
-                        corriente_pv: I_pv,
-                        potencia_pv: P_pv,
-                        irradiancia_estimada: irradiancia
-                    };
-                } catch (e) {
-                    return null;
-                }
-            }
-        }
 
         // ===== ESTADO GLOBAL =====
         const AppState = {
@@ -928,8 +824,7 @@
             data: {
                 history: [],
                 lastReceived: null
-            },
-            pvCalculator: new KiosolPVCalculator()
+            }
         };
 
         // ===== GESTIÓN DE MQTT =====
@@ -1094,32 +989,9 @@
 
             static addToHistory(data) {
                 const pvVoltage = parseFloat(data.charge_controller?.input_voltage) || 0;
+                const pvCurrent = parseFloat(data.charge_controller?.input_current) || 0;
                 const outputCurrent = parseFloat(data.charge_controller?.output_current) || 0;
-                
-                // Usar calculadora PV para obtener valores reales
-                let pvCurrent = 0;
-                let pvPower = 0;
-                let irradiance = 0;
-                
-                if (pvVoltage > 5) {
-                    // Extraer temperatura
-                    let temperatura = 25.0;
-                    if (data.battery?.temperature) {
-                        try {
-                            temperatura = parseFloat(data.battery.temperature.toString().replace(' C', '').replace('°C', ''));
-                        } catch (e) {
-                            temperatura = 25.0;
-                        }
-                    }
-                    
-                    // Calcular con la calculadora PV
-                    const analisisPV = AppState.pvCalculator.analisisCompleto(pvVoltage, temperatura);
-                    if (analisisPV) {
-                        pvCurrent = analisisPV.corriente_pv;
-                        pvPower = analisisPV.potencia_pv;
-                        irradiance = analisisPV.irradiancia_estimada;
-                    }
-                }
+                const pvPower = pvVoltage * pvCurrent;
                 
                 // Solo agregar si hay datos válidos
                 const hasValidData = data.system?.battery_voltage && 
@@ -1129,13 +1001,12 @@
                 if (hasValidData) {
                     const historyEntry = {
                         timestamp: new Date().toISOString(),
-                        power: pvPower,  // Usar potencia calculada
-                        irradiance: irradiance,  // Agregar irradiancia
+                        power: pvPower,
                         soc: data.battery?.soc || 0,
                         voltage_system: parseFloat(data.system?.battery_voltage) || 0,
                         voltage_pv: pvVoltage,
                         voltage_battery: parseFloat(data.battery?.voltage) || 0,
-                        current_pv: pvCurrent,  // Usar corriente calculada
+                        current_pv: pvCurrent,
                         current_output: outputCurrent,
                         shunt_a: parseFloat(data.battery?.shunt_a_current) || 0,
                         shunt_b: parseFloat(data.battery?.shunt_b_current) || 0,
@@ -1191,25 +1062,22 @@
                 UIManager.showAlert('🗑️ Historial limpiado', 'success');
             }
 
-            // ===== FUNCIÓN CSV CORREGIDA =====
             static downloadCSV() {
                 if (!AppState.data.history.length) {
                     UIManager.showAlert('No hay datos para descargar', 'warning');
                     return;
                 }
 
-                let csv = 'Timestamp,Hora,Potencia(W),Irradiancia(W/m²),SoC(%),V_Sistema(V),V_PV(V),V_Bateria(V),I_PV(A),I_Salida(A),Shunt_A(A),Shunt_B(A),E_Entrada(kWh),E_Salida(kWh)\n';
+                let csv = 'Timestamp,Hora,Potencia(W),SoC(%),V_Sistema(V),V_PV(V),V_Bateria(V),I_PV(A),I_Salida(A),Shunt_A(A),Shunt_B(A),E_Entrada(kWh),E_Salida(kWh)\n';
                 
                 AppState.data.history.forEach(item => {
                     const date = new Date(item.timestamp);
                     
-                    // Función helper para validar y formatear números
                     const safeFixed = (value, decimals = 2) => {
                         const num = parseFloat(value);
                         return isNaN(num) ? '0' : num.toFixed(decimals);
                     };
                     
-                    // Función helper para valores que pueden no existir
                     const safeValue = (value) => {
                         return (value !== undefined && value !== null) ? value : '0';
                     };
@@ -1217,7 +1085,6 @@
                     csv += `${item.timestamp},`;
                     csv += `${date.toLocaleString('es-CO')},`;
                     csv += `${safeFixed(item.power, 2)},`;
-                    csv += `${safeFixed(item.irradiance, 0)},`;
                     csv += `${safeValue(item.soc)},`;
                     csv += `${safeValue(item.voltage_system)},`;
                     csv += `${safeValue(item.voltage_pv)},`;
@@ -1242,10 +1109,8 @@
             }
 
             static updateSystemStats() {
-                // Actualizar contador de datos
                 document.getElementById('dataCount').textContent = AppState.data.history.length;
                 
-                // Actualizar tiempo online
                 if (AppState.mqtt.connectTime) {
                     const uptime = Math.floor((new Date() - AppState.mqtt.connectTime) / 1000);
                     document.getElementById('uptime').textContent = this.formatDuration(uptime);
@@ -1271,7 +1136,7 @@
         class UIUpdater {
             static updateAllMetrics(data) {
                 this.updateInverter(data.inverter);
-                this.updateChargeController(data.charge_controller, data.battery);
+                this.updateChargeController(data.charge_controller);
                 this.updateBattery(data.battery);
                 this.updateSystem(data.system);
             }
@@ -1284,7 +1149,6 @@
                 document.getElementById('invBatteryVoltage').textContent = inverter.battery_voltage ? `${inverter.battery_voltage} V` : '-- V';
                 document.getElementById('acMode').textContent = inverter.ac_mode || '--';
                 
-                // Estado del inversor
                 const warnings = inverter.warnings || ['none'];
                 const errors = inverter.errors || ['none'];
                 let status = 'Normal';
@@ -1303,43 +1167,19 @@
                 statusEl.className = 'metric-value ' + statusClass;
             }
 
-            static updateChargeController(cc, battery) {
+            static updateChargeController(cc) {
                 if (!cc) return;
 
                 const pvVoltage = parseFloat(cc.input_voltage) || 0;
+                const pvCurrent = parseFloat(cc.input_current) || 0;
                 const outputCurrent = parseFloat(cc.output_current) || 0;
                 const outputKwh = parseFloat(cc.output_kwh) || 0;
-                
-                // Usar calculadora PV para valores reales
-                let pvCurrent = parseFloat(cc.input_current) || 0;  // Fallback a MATE3
-                let pvPower = pvVoltage * pvCurrent;  // Fallback a MATE3
-                let irradiance = 0;
-                
-                if (pvVoltage > 5) {
-                    // Extraer temperatura
-                    let temperatura = 25.0;
-                    if (battery?.temperature) {
-                        try {
-                            temperatura = parseFloat(battery.temperature.toString().replace(' C', '').replace('°C', ''));
-                        } catch (e) {
-                            temperatura = 25.0;
-                        }
-                    }
-                    
-                    // Calcular con la calculadora PV
-                    const analisisPV = AppState.pvCalculator.analisisCompleto(pvVoltage, temperatura);
-                    if (analisisPV) {
-                        pvCurrent = analisisPV.corriente_pv;  // Reemplazar valor del MATE3
-                        pvPower = analisisPV.potencia_pv;     // Reemplazar valor del MATE3
-                        irradiance = analisisPV.irradiancia_estimada;
-                    }
-                }
+                const pvPower = pvVoltage * pvCurrent;
 
                 document.getElementById('ccMode').textContent = cc.mode ? cc.mode.trim() : '--';
                 document.getElementById('pvVoltage').textContent = `${pvVoltage.toFixed(1)} V`;
                 document.getElementById('pvCurrent').textContent = `${pvCurrent.toFixed(2)} A`;
                 document.getElementById('pvPower').textContent = `${pvPower.toFixed(1)} W`;
-                document.getElementById('irradianceEstimated').textContent = `${irradiance.toFixed(0)} W/m²`;
                 document.getElementById('ccOutputCurrent').textContent = `${outputCurrent.toFixed(1)} A`;
                 document.getElementById('energyOutputToday').textContent = `${outputKwh.toFixed(2)} kWh`;
             }
@@ -1353,23 +1193,19 @@
                 const minSoc = battery.min_soc || 0;
                 const daysSinceFull = battery.days_since_full || 0;
 
-                // Actualizar gauge
                 document.getElementById('socValue').textContent = `${soc}%`;
                 document.getElementById('socGauge').style.strokeDasharray = `${soc} 100`;
                 
-                // Color del gauge según SoC
                 let gaugeColor = '#00ff88';
                 if (soc < 20) gaugeColor = '#ff4444';
                 else if (soc < 50) gaugeColor = '#ffd700';
                 document.getElementById('socGauge').style.stroke = gaugeColor;
 
-                // Otras métricas de batería
                 document.getElementById('batteryVoltage').textContent = `${voltage.toFixed(1)} V`;
                 document.getElementById('batteryTemp').textContent = `${temp} °C`;
                 document.getElementById('batteryMinSoc').textContent = `${minSoc}%`;
                 document.getElementById('daysSinceFull').textContent = `${daysSinceFull.toFixed(1)}`;
 
-                // Shunts y energía
                 const shuntA = parseFloat(battery.shunt_a_current) || 0;
                 const shuntB = parseFloat(battery.shunt_b_current) || 0;
                 const inputKwh = parseFloat(battery.input_kwh_today) || 0;
@@ -1443,22 +1279,18 @@
             static changeTimeRange(hours) {
                 AppState.chart.currentTimeRange = hours;
                 
-                // Actualizar botones
                 document.querySelectorAll('[data-hours]').forEach(btn => btn.classList.remove('active'));
                 document.querySelector(`[data-hours="${hours}"]`).classList.add('active');
                 
-                // Actualizar título
                 const rangeText = hours === 1 ? 'Última hora' : `Últimas ${hours} horas`;
                 document.getElementById('chartTimeRange').textContent = rangeText;
                 
-                // Actualizar gráfica
                 this.updateChart();
             }
 
             static showChart(type) {
                 AppState.chart.currentType = type;
                 
-                // Actualizar botones
                 document.querySelectorAll('.chart-selector .chart-btn').forEach(btn => btn.classList.remove('active'));
                 event.target.classList.add('active');
                 
@@ -1471,7 +1303,6 @@
                 
                 if (!chart || !history.length) return;
 
-                // Filtrar por rango de tiempo
                 const now = new Date();
                 const timeLimit = new Date(now.getTime() - (AppState.chart.currentTimeRange * 60 * 60 * 1000));
                 
@@ -1481,15 +1312,12 @@
 
                 if (!filteredData.length) return;
 
-                // Preparar labels
                 const labels = filteredData.map(item => 
                     this.formatTime(new Date(item.timestamp))
                 );
 
-                // Configurar datasets según tipo
                 const { datasets, yAxisLabel } = this.getChartConfig(filteredData);
 
-                // Actualizar gráfica
                 chart.data.labels = labels;
                 chart.data.datasets = datasets;
                 chart.options.scales.y.title = {
@@ -1499,7 +1327,6 @@
                 };
                 chart.update('none');
 
-                // Actualizar info
                 this.updateChartInfo(filteredData);
             }
 
@@ -1519,19 +1346,6 @@
                                 tension: 0.4
                             }],
                             yAxisLabel: 'Potencia (W)'
-                        };
-
-                    case 'irradiance':
-                        return {
-                            datasets: [{
-                                label: 'Irradiancia Estimada (W/m²)',
-                                data: data.map(item => item.irradiance),
-                                borderColor: colors.irradiance,
-                                backgroundColor: colors.irradiance + '20',
-                                fill: true,
-                                tension: 0.4
-                            }],
-                            yAxisLabel: 'Irradiancia (W/m²)'
                         };
 
                     case 'soc':
@@ -1666,10 +1480,6 @@
                         values = data.map(item => item.power);
                         unit = 'W';
                         break;
-                    case 'irradiance':
-                        values = data.map(item => item.irradiance);
-                        unit = 'W/m²';
-                        break;
                     case 'soc':
                         values = data.map(item => item.soc);
                         unit = '%';
@@ -1708,12 +1518,10 @@
                 const panel = document.getElementById(panelId);
                 const isVisible = panel.classList.contains('show');
                 
-                // Cerrar todos los paneles
                 document.querySelectorAll('.config-panel').forEach(p => {
                     p.classList.remove('show');
                 });
                 
-                // Mostrar el panel solicitado si no estaba visible
                 if (!isVisible) {
                     panel.classList.add('show');
                 }
@@ -1761,26 +1569,21 @@
                     Math.floor((new Date() - AppState.mqtt.connectTime) / 1000) : 0;
                 
                 const info = `
-🎓 SISTEMA MATE3 CON CALCULADORA PV KIOSOL
-═══════════════════════════════════════
+🎓 SISTEMA MATE3 - LIMPIO
+═══════════════════════
 
 📊 Estadísticas del Sistema:
-• Versión: ${CONFIG.VERSION} (CSV CORREGIDO)
+• Versión: ${CONFIG.VERSION}
 • Datos en memoria: ${AppState.data.history.length}
 • Tiempo online: ${DataManager.formatDuration(uptime)}
 • Mensajes MQTT: ${AppState.mqtt.messageCount}
-
-🧮 Calculadora PV KIOSOL:
-• Los valores de corriente y potencia PV son calculados científicamente
-• Sistema: ${AppState.pvCalculator.P_max}W (${AppState.pvCalculator.numPaneles} paneles)
-• Irradiancia estimada desde voltaje del sistema
 
 🎯 Autor: Andrés Santiago Gómez Blanco
 🏛️ Universidad de los Andes
 🔬 Laboratorio Kiosol
 📅 Junio 2025
 
-✅ Sistema funcionando correctamente con CSV CORREGIDO
+✅ Sistema funcionando correctamente
                 `;
                 
                 this.showAlert(info, 'success');
@@ -1791,32 +1594,24 @@
         // ===== GESTIÓN DE APLICACIÓN =====
         class AppManager {
             static init() {
-                console.log('🚀 Inicializando MATE3 Dashboard con CSV CORREGIDO...');
+                console.log('🚀 Inicializando MATE3 Dashboard...');
                 
-                // Generar ID de cliente único
                 document.getElementById('mqttClientId').value = MQTTManager.generateClientId();
                 
-                // Cargar configuración guardada
                 this.loadMqttConfig();
-                
-                // Inicializar componentes
                 ChartManager.init();
                 DataManager.loadFromStorage();
-                
-                // Actualizar estadísticas iniciales
                 DataManager.updateSystemStats();
                 
-                // Si hay datos históricos, actualizar gráfica
                 if (AppState.data.history.length > 0) {
                     ChartManager.updateChart();
                 }
                 
-                // Mostrar mensaje de bienvenida
                 setTimeout(() => {
-                    UIManager.showAlert('✅ MATE3 Dashboard cargado con función CSV CORREGIDA. ¡Los problemas de descarga han sido solucionados!', 'success');
+                    UIManager.showAlert('✅ MATE3 Dashboard cargado correctamente', 'success');
                 }, 1000);
                 
-                console.log('✅ Dashboard inicializado correctamente con CSV funcionando');
+                console.log('✅ Dashboard inicializado correctamente');
             }
 
             static getMqttConfig() {
@@ -1860,13 +1655,11 @@
         document.addEventListener('DOMContentLoaded', function() {
             AppManager.init();
             
-            // Actualizar estadísticas cada 30 segundos
             setInterval(() => {
                 DataManager.updateSystemStats();
             }, 30000);
         });
 
-        // Limpiar al salir
         window.addEventListener('beforeunload', function() {
             if (AppState.mqtt.client && AppState.mqtt.connected) {
                 AppState.mqtt.client.end();
